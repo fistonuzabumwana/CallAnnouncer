@@ -1,22 +1,15 @@
 package com.example.ui.screens
 
 import android.os.Build
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.CheckCircle
@@ -25,23 +18,24 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.ui.components.Group
+import com.example.ui.components.GroupDivider
+import com.example.ui.components.IconTile
+import com.example.ui.components.ScreenColumn
+import com.example.ui.components.Section
+import com.example.ui.components.Spacing
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentGreen
 import com.example.ui.theme.AccentRed
@@ -57,36 +51,28 @@ fun SetupScreen(
     onFix: (ReadinessCheck) -> Unit,
     onConfirm: (ReadinessCheck) -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    ScreenColumn {
         SummaryCard(report, isGuiding, onFixEverything)
 
-        Text(
-            text = "Required",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(top = 8.dp)
-        )
-        report.required.forEach { CheckCard(it, onFix, onConfirm) }
+        Section(title = "Required") {
+            report.required.forEachIndexed { index, check ->
+                if (index > 0) GroupDivider()
+                CheckRow(check, onFix, onConfirm)
+            }
+        }
+
+        Section(title = "Recommended") {
+            report.recommended.forEachIndexed { index, check ->
+                if (index > 0) GroupDivider()
+                CheckRow(check, onFix, onConfirm)
+            }
+        }
 
         Text(
-            text = "Recommended",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(top = 8.dp)
-        )
-        report.recommended.forEach { CheckCard(it, onFix, onConfirm) }
-
-        Text(
-            text = "Phone: ${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE}",
+            text = "${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL} · Android ${Build.VERSION.RELEASE}",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 8.dp)
+            modifier = Modifier.padding(start = Spacing.xs, bottom = Spacing.lg)
         )
     }
 }
@@ -98,74 +84,71 @@ private fun SummaryCard(report: ReadinessReport, isGuiding: Boolean, onFixEveryt
     val done = total - report.failingRequired.size
     val accent = if (ready) AccentGreen else AccentAmber
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("setup_summary_card"),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = accent.copy(alpha = 0.15f))
+    Group(
+        modifier = Modifier.testTag("setup_summary_card"),
+        color = accent.copy(alpha = 0.10f),
+        contentPadding = PaddingValues(Spacing.xl)
     ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = if (ready) Icons.Default.VerifiedUser else Icons.Default.Warning,
-                    contentDescription = null,
-                    tint = accent,
-                    modifier = Modifier.size(36.dp)
-                )
-                Spacer(modifier = Modifier.width(14.dp))
-                Column {
-                    Text(
-                        text = if (ready) "Ready: calls will be announced" else "Setup needed",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = if (ready) {
-                            "Everything this phone needs is in place, even when the app is closed."
-                        } else {
-                            "$done of $total required steps done. Until all are done, calls may not be announced when the app is closed."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-            LinearProgressIndicator(
-                progress = { if (total == 0) 1f else done.toFloat() / total },
-                color = accent,
-                modifier = Modifier.fillMaxWidth()
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconTile(
+                icon = if (ready) Icons.Default.VerifiedUser else Icons.Default.Warning,
+                tint = accent,
+                size = 52.dp,
+                circle = true
             )
-
-            if (report.fixable.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(14.dp))
-                Button(
-                    onClick = onFixEverything,
-                    enabled = !isGuiding,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("fix_everything_button"),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Icon(Icons.Default.AutoFixHigh, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (isGuiding) "Fixing… approve each screen" else "Fix everything", fontWeight = FontWeight.Bold)
-                }
+            Spacer(Modifier.width(Spacing.lg))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Opens each Android setting in turn. Tap Allow (or switch it on), then come back; the next one opens automatically.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 6.dp)
+                    text = if (ready) "All set" else "$done of $total done",
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Text(
+                    text = if (ready) "Calls will be announced, even when the app is closed."
+                    else "Finish the steps below so calls are announced when the app is closed.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+
+        Spacer(Modifier.height(Spacing.lg))
+        LinearProgressIndicator(
+            progress = { if (total == 0) 1f else done.toFloat() / total },
+            color = accent,
+            trackColor = accent.copy(alpha = 0.2f),
+            strokeCap = StrokeCap.Round,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+        )
+
+        if (report.fixable.isNotEmpty()) {
+            Spacer(Modifier.height(Spacing.lg))
+            Button(
+                onClick = onFixEverything,
+                enabled = !isGuiding,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .testTag("fix_everything_button")
+            ) {
+                Icon(Icons.Default.AutoFixHigh, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(Spacing.sm))
+                Text(if (isGuiding) "Approve each screen…" else "Fix everything")
+            }
+            Text(
+                text = "Opens each setting in turn. Tap Allow, then come back; the next one opens automatically.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = Spacing.sm)
+            )
         }
     }
 }
 
 @Composable
-private fun CheckCard(
+private fun CheckRow(
     check: ReadinessCheck,
     onFix: (ReadinessCheck) -> Unit,
     onConfirm: (ReadinessCheck) -> Unit
@@ -177,51 +160,35 @@ private fun CheckCard(
         else -> Icons.Default.Warning to AccentAmber
     }
 
-    Card(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .testTag("setup_check_${check.item.name.lowercase()}"),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            .padding(horizontal = Spacing.lg, vertical = 14.dp)
+            .testTag("setup_check_${check.item.name.lowercase()}")
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.Top) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(tint.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = check.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = check.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+        Row(verticalAlignment = Alignment.Top) {
+            IconTile(icon = icon, tint = tint)
+            Spacer(Modifier.width(Spacing.md))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = check.title, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    text = check.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
+        }
 
-            if (!check.passed && check.fixLabel != null) {
-                Spacer(modifier = Modifier.height(10.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilledTonalButton(onClick = { onFix(check) }, shape = RoundedCornerShape(12.dp)) {
-                        Text(check.fixLabel)
-                    }
-                    if (check.needsConfirmation) {
-                        OutlinedButton(onClick = { onConfirm(check) }, shape = RoundedCornerShape(12.dp)) {
-                            Text("I turned it on")
-                        }
-                    }
+        if (!check.passed && check.fixLabel != null) {
+            Row(modifier = Modifier.padding(start = 48.dp, top = Spacing.md)) {
+                FilledTonalButton(onClick = { onFix(check) }, shape = MaterialTheme.shapes.small) {
+                    Text(check.fixLabel)
                 }
-            } else if (check.passed && check.needsConfirmation) {
-                TextButton(onClick = { onFix(check) }) {
-                    Text("Check again", color = Color.Unspecified)
+                if (check.needsConfirmation) {
+                    Spacer(Modifier.width(Spacing.sm))
+                    OutlinedButton(onClick = { onConfirm(check) }, shape = MaterialTheme.shapes.small) {
+                        Text("It's on")
+                    }
                 }
             }
         }

@@ -5,25 +5,31 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import com.example.ui.components.CallAnnouncerTopBar
 import com.example.ui.components.SimulatedCallBanner
@@ -32,11 +38,17 @@ import com.example.ui.screens.HistoryScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.SetupScreen
 
-enum class ScreenTab {
-    DASHBOARD,
-    SETTINGS,
-    HISTORY,
-    SETUP
+enum class ScreenTab(
+    val label: String,
+    val title: String,
+    val selectedIcon: ImageVector,
+    val icon: ImageVector,
+    val tag: String
+) {
+    DASHBOARD("Home", "Call Announcer", Icons.Filled.Home, Icons.Outlined.Home, "tab_dashboard"),
+    SETTINGS("Voice", "Voice", Icons.Filled.GraphicEq, Icons.Outlined.GraphicEq, "tab_settings"),
+    HISTORY("History", "History", Icons.Filled.History, Icons.Outlined.History, "tab_history"),
+    SETUP("Setup", "Setup", Icons.Filled.Shield, Icons.Outlined.Shield, "tab_setup")
 }
 
 @Composable
@@ -58,78 +70,63 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
     val livePreview = viewModel.getLivePreview()
     val setupFixer = rememberSetupFixer(viewModel)
 
-    BackHandler(enabled = currentTab != ScreenTab.DASHBOARD) {
+    BackHandler(enabled = isSimulatingRinging) {
+        viewModel.stopTts()
+    }
+    BackHandler(enabled = !isSimulatingRinging && currentTab != ScreenTab.DASHBOARD) {
         currentTab = ScreenTab.DASHBOARD
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        topBar = {
-            CallAnnouncerTopBar(
-                isEnabled = settings.isEnabled,
-                isReady = readiness.isReady,
-                isSpeaking = isSpeaking,
-                onStopSpeech = { viewModel.stopTts() }
-            )
-        },
-        bottomBar = {
-            NavigationBar(modifier = Modifier.testTag("bottom_nav_bar")) {
-                NavigationBarItem(
-                    selected = currentTab == ScreenTab.DASHBOARD,
-                    onClick = { currentTab = ScreenTab.DASHBOARD },
-                    icon = { Icon(Icons.Default.Home, contentDescription = "Dashboard") },
-                    label = { Text("Tester") },
-                    modifier = Modifier.testTag("tab_dashboard")
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = MaterialTheme.colorScheme.background,
+            topBar = {
+                CallAnnouncerTopBar(
+                    title = currentTab.title,
+                    isEnabled = settings.isEnabled,
+                    isReady = readiness.isReady,
+                    isSpeaking = isSpeaking,
+                    onStopSpeech = { viewModel.stopTts() }
                 )
-                NavigationBarItem(
-                    selected = currentTab == ScreenTab.SETTINGS,
-                    onClick = { currentTab = ScreenTab.SETTINGS },
-                    icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                    label = { Text("Voice & Cadence") },
-                    modifier = Modifier.testTag("tab_settings")
-                )
-                NavigationBarItem(
-                    selected = currentTab == ScreenTab.HISTORY,
-                    onClick = { currentTab = ScreenTab.HISTORY },
-                    icon = {
-                        if (callLogs.isNotEmpty()) {
-                            BadgedBox(badge = { Badge { Text("${callLogs.size}") } }) {
-                                Icon(Icons.Default.History, contentDescription = "History")
-                            }
-                        } else {
-                            Icon(Icons.Default.History, contentDescription = "History")
-                        }
-                    },
-                    label = { Text("Log") },
-                    modifier = Modifier.testTag("tab_history")
-                )
-                NavigationBarItem(
-                    selected = currentTab == ScreenTab.SETUP,
-                    onClick = { currentTab = ScreenTab.SETUP },
-                    icon = {
-                        val missing = readiness.failingRequired.size
-                        if (missing > 0) {
-                            BadgedBox(badge = { Badge { Text("$missing") } }) {
-                                Icon(Icons.Default.Security, contentDescription = "Setup")
-                            }
-                        } else {
-                            Icon(Icons.Default.Security, contentDescription = "Setup")
-                        }
-                    },
-                    label = { Text("Setup") },
-                    modifier = Modifier.testTag("tab_setup")
-                )
+            },
+            bottomBar = {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    modifier = Modifier.testTag("bottom_nav_bar")
+                ) {
+                    ScreenTab.entries.forEach { tab ->
+                        val selected = currentTab == tab
+                        val badge = if (tab == ScreenTab.SETUP) readiness.failingRequired.size else 0
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = { currentTab = tab },
+                            icon = {
+                                BadgedBox(badge = { if (badge > 0) Badge { Text("$badge") } }) {
+                                    Icon(
+                                        if (selected) tab.selectedIcon else tab.icon,
+                                        contentDescription = tab.label
+                                    )
+                                }
+                            },
+                            label = { Text(tab.label) },
+                            colors = NavigationBarItemDefaults.colors(
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            ),
+                            modifier = Modifier.testTag(tab.tag)
+                        )
+                    }
+                }
             }
-        }
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            when (currentTab) {
-                ScreenTab.DASHBOARD -> {
-                    DashboardScreen(
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                when (currentTab) {
+                    ScreenTab.DASHBOARD -> DashboardScreen(
                         settings = settings,
                         readiness = readiness,
                         testPhoneNumber = testPhoneNumber,
@@ -145,10 +142,8 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
                         onNavigateToSetup = { currentTab = ScreenTab.SETUP },
                         onNavigateToSettings = { currentTab = ScreenTab.SETTINGS }
                     )
-                }
 
-                ScreenTab.SETTINGS -> {
-                    SettingsScreen(
+                    ScreenTab.SETTINGS -> SettingsScreen(
                         settings = settings,
                         availableLanguages = voiceLanguages,
                         onVoiceLanguageChange = { viewModel.updateVoiceLanguage(it) },
@@ -164,19 +159,15 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
                         onToggleSyncRingtone = { viewModel.toggleSyncRingtoneVolume() },
                         onTestSettings = { viewModel.testSpeakWithSettings() }
                     )
-                }
 
-                ScreenTab.HISTORY -> {
-                    HistoryScreen(
+                    ScreenTab.HISTORY -> HistoryScreen(
                         callLogs = callLogs,
                         onReplayCall = { viewModel.replayCallLog(it) },
                         onDeleteCall = { viewModel.deleteCallLog(it) },
                         onClearAll = { viewModel.clearAllLogs() }
                     )
-                }
 
-                ScreenTab.SETUP -> {
-                    SetupScreen(
+                    ScreenTab.SETUP -> SetupScreen(
                         report = readiness,
                         isGuiding = setupFixer.isGuiding,
                         onFixEverything = { setupFixer.fixEverything() },
@@ -185,15 +176,14 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
                     )
                 }
             }
-
-            // Simulated Call Heads-Up Overlay Banner
-            SimulatedCallBanner(
-                visible = isSimulatingRinging,
-                announcementResult = livePreview,
-                isSpeaking = isSpeaking,
-                onAnswer = { viewModel.answerSimulatedCall() },
-                onDecline = { viewModel.stopTts() }
-            )
         }
+
+        SimulatedCallBanner(
+            visible = isSimulatingRinging,
+            announcementResult = livePreview,
+            isSpeaking = isSpeaking,
+            onAnswer = { viewModel.answerSimulatedCall() },
+            onDecline = { viewModel.stopTts() }
+        )
     }
 }
