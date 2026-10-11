@@ -13,6 +13,7 @@ import com.example.util.DebugLog
 import com.example.util.DeviceStorage
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -141,73 +142,93 @@ object DirectTtsAnnouncer : TextToSpeech.OnInitListener {
         initialize(context)
         stop()
 
-        val job = scope.launch {
-            if (skipWhenSilenced && volumeController?.isRingerSilenced() == true) {
-                DebugLog.d(TAG, "Phone is on silent/vibrate; skipping announcement")
+        val job = scope.launch(start = CoroutineStart.LAZY) {
+            try {
+                announce(text, repeatCount, initialDelayMs, repeatDelayMs, rate, pitch,
+                    languageTag, duckRingtone, syncRingtoneVolume, skipWhenSilenced)
+            } finally {
+                // A replaced announcement must not release the wake lock of the one that replaced it
+                if (announcementJob === coroutineContext[Job]) {
+                    _isSpeaking.value = false
+                    releaseWakeLock()
+                }
                 onFinish?.invoke()
-                return@launch
             }
-
-            acquireWakeLock()
-
-            // Wait briefly if initializing
-            var waitCount = 0
-            while (!_isReady.value && waitCount < 20) {
-                delay(100)
-                waitCount++
-            }
-
-            if (!_isReady.value || tts == null) {
-                Log.w(TAG, "TTS not ready to speak announcement (ready=${_isReady.value})")
-                releaseWakeLock()
-                return@launch
-            }
-
-            tts?.let { applyLanguage(it, languageTag) }
-            tts?.setSpeechRate(rate.coerceIn(0.5f, 2.0f))
-            tts?.setPitch(pitch.coerceIn(0.5f, 2.0f))
-
-            // 1. Prepare the audio during the initial delay, while the ringtone plays at normal volume.
-            // Playing the audio from this process (instead of the TTS engine's) keeps the app
-            // "playing audio", which stops OEM freezers like TECNO's Hiber from pausing it mid-speech.
-            val startedAt = SystemClock.elapsedRealtime()
-            val audioFile = obtainAudioFile(text, rate, pitch)
-            DebugLog.d(TAG, "Audio ready in ${SystemClock.elapsedRealtime() - startedAt}ms, " +
-                "file=${audioFile?.length() ?: "failed; using engine playback"}")
-            val remainingDelay = initialDelayMs - (SystemClock.elapsedRealtime() - startedAt)
-            if (remainingDelay > 0) {
-                delay(remainingDelay)
-            }
-
-            // 2. Raise the announcement above the ringtone level and lower the ringtone
-            volumeController?.begin(
-                duckRingtone = duckRingtone,
-                louderThanRingtone = syncRingtoneVolume
-            )
-
-            val loops = if (repeatCount <= 0) 1 else repeatCount
-            for (i in 0 until loops) {
-                _isSpeaking.value = true
-                if (audioFile != null) {
-                    playFile(audioFile)
-                } else {
-                    speakWithEngine(text)
-                }
-
-                if (i < loops - 1) {
-                    delay(repeatDelayMs)
-                }
-            }
-
-            // 3. After the announcement repetitions finish, restore ringtone and announcement volumes
-            volumeController?.restore()
-
-            _isSpeaking.value = false
-            releaseWakeLock()
-            onFinish?.invoke()
         }
         announcementJob = job
+        job.start()
         return job
+    }
+
+    private suspend fun announce(
+        text: String,
+        repeatCount: Int,
+        initialDelayMs: Long,
+        repeatDelayMs: Long,
+        rate: Float,
+        pitch: Float,
+        languageTag: String,
+        duckRingtone: Boolean,
+        syncRingtoneVolume: Boolean,
+        skipWhenSilenced: Boolean
+    ) {
+        if (skipWhenSilenced && volumeController?.isRingerSilenced() == true) {
+            DebugLog.d(TAG, "Phone is on silent/vibrate; skipping announcement")
+            return
+        }
+
+        acquireWakeLock()
+
+        // Wait briefly if initializing
+        var waitCount = 0
+        while (!_isReady.value && waitCount < 20) {
+            delay(100)
+            waitCount++
+        }
+
+        if (!_isReady.value || tts == null) {
+            Log.w(TAG, "TTS not ready to speak announcement (ready=${_isReady.value})")
+            return
+        }
+
+        tts?.let { applyLanguage(it, languageTag) }
+        tts?.setSpeechRate(rate.coerceIn(0.5f, 2.0f))
+        tts?.setPitch(pitch.coerceIn(0.5f, 2.0f))
+
+        // 1. Prepare the audio during the initial delay, while the ringtone plays at normal volume.
+        // Playing the audio from this process (instead of the TTS engine's) keeps the app
+        // "playing audio", which stops OEM freezers like TECNO's Hiber from pausing it mid-speech.
+        val startedAt = SystemClock.elapsedRealtime()
+        val audioFile = obtainAudioFile(text, rate, pitch)
+        DebugLog.d(TAG, "Audio ready in ${SystemClock.elapsedRealtime() - startedAt}ms, " +
+            "file=${audioFile?.length() ?: "failed; using engine playback"}")
+        val remainingDelay = initialDelayMs - (SystemClock.elapsedRealtime() - startedAt)
+        if (remainingDelay > 0) {
+            delay(remainingDelay)
+        }
+
+        // 2. Raise the announcement above the ringtone level and lower the ringtone
+        volumeController?.begin(
+            duckRingtone = duckRingtone,
+            louderThanRingtone = syncRingtoneVolume
+        )
+
+        val loops = if (repeatCount <= 0) 1 else repeatCount
+        for (i in 0 until loops) {
+            _isSpeaking.value = true
+            if (audioFile != null) {
+                playFile(audioFile)
+            } else {
+                speakWithEngine(text)
+            }
+
+            if (i < loops - 1) {
+                delay(repeatDelayMs)
+            }
+        }
+
+        // 3. After the announcement repetitions finish, restore ringtone and announcement volumes
+        volumeController?.restore()
     }
 
     /** Uses the cached recording for this exact announcement, synthesizing it on first use. */

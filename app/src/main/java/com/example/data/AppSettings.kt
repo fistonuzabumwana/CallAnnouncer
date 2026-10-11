@@ -27,7 +27,11 @@ data class AnnouncerSettings(
 
 class AppSettings private constructor(context: Context) {
 
-    private val prefs: SharedPreferences = DeviceStorage.prefs(context, PREFS_NAME)
+    @Volatile
+    private var prefs: SharedPreferences = DeviceStorage.prefs(context, PREFS_NAME) { migrated ->
+        prefs = migrated
+        _settingsFlow.value = loadSettings()
+    }
 
     private val _settingsFlow = MutableStateFlow(loadSettings())
     val settingsFlow: StateFlow<AnnouncerSettings> = _settingsFlow.asStateFlow()
@@ -114,9 +118,7 @@ class AppSettings private constructor(context: Context) {
 
         fun getInstance(context: Context): AppSettings {
             return INSTANCE ?: synchronized(this) {
-                val instance = AppSettings(context)
-                INSTANCE = instance
-                instance
+                INSTANCE ?: AppSettings(context.applicationContext).also { INSTANCE = it }
             }
         }
     }
