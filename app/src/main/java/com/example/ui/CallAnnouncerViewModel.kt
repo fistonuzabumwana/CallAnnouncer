@@ -4,10 +4,7 @@ import android.app.Application
 import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
-import android.os.PowerManager
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.AppDatabase
@@ -18,25 +15,18 @@ import com.example.tts.DirectTtsAnnouncer
 import com.example.util.AnnouncementBuilder
 import com.example.util.AnnouncementResult
 import com.example.util.PairSpokenMode
+import com.example.util.ReadinessChecker
+import com.example.util.ReadinessReport
+import com.example.util.SetupState
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-
-data class PermissionStatus(
-    val hasPhoneState: Boolean = false,
-    val hasCallLog: Boolean = false,
-    val hasContacts: Boolean = false,
-    val hasNotifications: Boolean = false,
-    val ignoresBatteryOptimizations: Boolean = false,
-    val hasCallScreeningRole: Boolean = false
-) {
-    val allGranted: Boolean
-        get() = hasPhoneState && hasCallLog && hasContacts && hasNotifications
-}
 
 class CallAnnouncerViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -63,64 +53,51 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
     private val _isSimulatingRinging = MutableStateFlow(false)
     val isSimulatingRinging: StateFlow<Boolean> = _isSimulatingRinging.asStateFlow()
 
-    private val _permissionsStatus = MutableStateFlow(PermissionStatus())
-    val permissionsStatus: StateFlow<PermissionStatus> = _permissionsStatus.asStateFlow()
+    private val _readiness = MutableStateFlow(ReadinessChecker.check(application))
+    val readiness: StateFlow<ReadinessReport> = _readiness.asStateFlow()
 
     private var simulationJob: Job? = null
 
     init {
         DirectTtsAnnouncer.initialize(application)
-        checkPermissions(application)
 
         if (settings.value.isEnabled) {
             CallAnnouncerService.start(application)
         }
-    }
 
-    fun checkPermissions(context: Context) {
-        val hasPhoneState = ContextCompat.checkSelfPermission(
-            context,
-            android.Manifest.permission.READ_PHONE_STATE
-        ) == PackageManager.PERMISSION_GRANTED
-
-        val hasCallLog = ContextCompat.checkSelfPermission(
-            context,
-            android.Manifest.permission.READ_CALL_LOG
-        ) == PackageManager.PERMISSION_GRANTED
-
-        val hasContacts = ContextCompat.checkSelfPermission(
-            context,
-            android.Manifest.permission.READ_CONTACTS
-        ) == PackageManager.PERMISSION_GRANTED
-
-        val hasNotifications = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(
-                context,
-                android.Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-        } else {
-            true
+        // The voice check changes once the speech engine finishes starting
+        viewModelScope.launch {
+            combine(DirectTtsAnnouncer.isReady, DirectTtsAnnouncer.availableLanguages) { _, _ -> }
+                .collect { refreshReadiness() }
         }
-
-        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
-        val ignoresBatteryOptimizations =
-            powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true
-
-        _permissionsStatus.value = PermissionStatus(
-            hasPhoneState = hasPhoneState,
-            hasCallLog = hasCallLog,
-            hasContacts = hasContacts,
-            hasNotifications = hasNotifications,
-            ignoresBatteryOptimizations = ignoresBatteryOptimizations,
-            hasCallScreeningRole = hasCallScreeningRole(context)
-        )
+        viewModelScope.launch {
+            // The service flags itself as running shortly after being started
+            delay(1500)
+            refreshReadiness()
+        }
     }
 
-    private fun hasCallScreeningRole(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
-        val roleManager = context.getSystemService(RoleManager::class.java) ?: return false
-        return roleManager.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING) &&
-            roleManager.isRoleHeld(RoleManager.ROLE_CALL_SCREENING)
+    fun refreshReadiness() {
+        val context = getApplication<Application>()
+        DirectTtsAnnouncer.refreshAvailableLanguages()
+        _readiness.value = ReadinessChecker.check(context)
+    }
+
+    fun confirmAutoStart(confirmed: Boolean = true) {
+        SetupState.setAutoStartConfirmed(getApplication(), confirmed)
+        refreshReadiness()
+    }
+
+    fun turnOnAnnouncer() {
+        val context = getApplication<Application>()
+        if (!settings.value.isEnabled) {
+            appSettings.updateSettings { it.copy(isEnabled = true) }
+        }
+        CallAnnouncerService.start(context)
+        viewModelScope.launch {
+            delay(1000)
+            refreshReadiness()
+        }
     }
 
     /** Intent that asks the user to make this app the call screening (caller ID) app. */
@@ -162,6 +139,10 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
         } else {
             CallAnnouncerService.stop(context)
             DirectTtsAnnouncer.stop()
+        }
+        viewModelScope.launch {
+            delay(1000)
+            refreshReadiness()
         }
     }
 

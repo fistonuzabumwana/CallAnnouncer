@@ -1,9 +1,6 @@
 package com.example.ui
 
-import android.os.Build
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -27,28 +24,27 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
 import com.example.ui.components.CallAnnouncerTopBar
 import com.example.ui.components.SimulatedCallBanner
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.HistoryScreen
-import com.example.ui.screens.PermissionsScreen
 import com.example.ui.screens.SettingsScreen
+import com.example.ui.screens.SetupScreen
 
 enum class ScreenTab {
     DASHBOARD,
     SETTINGS,
     HISTORY,
-    PERMISSIONS
+    SETUP
 }
 
 @Composable
 fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
-    val context = LocalContext.current
-    var currentTab by rememberSaveable { mutableStateOf(ScreenTab.DASHBOARD) }
+    // Start on the checklist until the phone is fully set up
+    var currentTab by rememberSaveable {
+        mutableStateOf(if (viewModel.readiness.value.isReady) ScreenTab.DASHBOARD else ScreenTab.SETUP)
+    }
 
     val settings by viewModel.settings.collectAsState()
     val callLogs by viewModel.callLogs.collectAsState()
@@ -56,40 +52,11 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
     val testPhoneNumber by viewModel.testPhoneNumber.collectAsState()
     val testContactName by viewModel.testContactName.collectAsState()
     val isSimulatingRinging by viewModel.isSimulatingRinging.collectAsState()
-    val permissionStatus by viewModel.permissionsStatus.collectAsState()
+    val readiness by viewModel.readiness.collectAsState()
     val voiceLanguages by viewModel.availableVoiceLanguages.collectAsState()
 
     val livePreview = viewModel.getLivePreview()
-
-    // Permission launcher for dangerous permissions
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) {
-        viewModel.checkPermissions(context)
-    }
-
-    val roleLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) {
-        viewModel.checkPermissions(context)
-    }
-
-    // Re-check when returning from system settings (e.g. battery optimization screen)
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        viewModel.checkPermissions(context)
-    }
-
-    fun requestPermissions() {
-        val permissions = mutableListOf(
-            android.Manifest.permission.READ_PHONE_STATE,
-            android.Manifest.permission.READ_CALL_LOG,
-            android.Manifest.permission.READ_CONTACTS
-        )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions.add(android.Manifest.permission.POST_NOTIFICATIONS)
-        }
-        permissionLauncher.launch(permissions.toTypedArray())
-    }
+    val setupFixer = rememberSetupFixer(viewModel)
 
     BackHandler(enabled = currentTab != ScreenTab.DASHBOARD) {
         currentTab = ScreenTab.DASHBOARD
@@ -100,6 +67,7 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
         topBar = {
             CallAnnouncerTopBar(
                 isEnabled = settings.isEnabled,
+                isReady = readiness.isReady,
                 isSpeaking = isSpeaking,
                 onStopSpeech = { viewModel.stopTts() }
             )
@@ -136,19 +104,20 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
                     modifier = Modifier.testTag("tab_history")
                 )
                 NavigationBarItem(
-                    selected = currentTab == ScreenTab.PERMISSIONS,
-                    onClick = { currentTab = ScreenTab.PERMISSIONS },
+                    selected = currentTab == ScreenTab.SETUP,
+                    onClick = { currentTab = ScreenTab.SETUP },
                     icon = {
-                        if (!permissionStatus.allGranted) {
-                            BadgedBox(badge = { Badge { Text("!") } }) {
-                                Icon(Icons.Default.Security, contentDescription = "Permissions")
+                        val missing = readiness.failingRequired.size
+                        if (missing > 0) {
+                            BadgedBox(badge = { Badge { Text("$missing") } }) {
+                                Icon(Icons.Default.Security, contentDescription = "Setup")
                             }
                         } else {
-                            Icon(Icons.Default.Security, contentDescription = "Permissions")
+                            Icon(Icons.Default.Security, contentDescription = "Setup")
                         }
                     },
-                    label = { Text("Permissions") },
-                    modifier = Modifier.testTag("tab_permissions")
+                    label = { Text("Setup") },
+                    modifier = Modifier.testTag("tab_setup")
                 )
             }
         }
@@ -162,7 +131,7 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
                 ScreenTab.DASHBOARD -> {
                     DashboardScreen(
                         settings = settings,
-                        permissionStatus = permissionStatus,
+                        readiness = readiness,
                         testPhoneNumber = testPhoneNumber,
                         testContactName = testContactName,
                         livePreview = livePreview,
@@ -173,7 +142,7 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
                         onTestSpeak = { viewModel.testSpeakPreview() },
                         onSimulateCall = { viewModel.simulateIncomingCall() },
                         onStopSpeech = { viewModel.stopTts() },
-                        onNavigateToPermissions = { currentTab = ScreenTab.PERMISSIONS },
+                        onNavigateToSetup = { currentTab = ScreenTab.SETUP },
                         onNavigateToSettings = { currentTab = ScreenTab.SETTINGS }
                     )
                 }
@@ -206,13 +175,13 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
                     )
                 }
 
-                ScreenTab.PERMISSIONS -> {
-                    PermissionsScreen(
-                        permissionStatus = permissionStatus,
-                        onRequestAllPermissions = { requestPermissions() },
-                        onRequestCallScreeningRole = {
-                            viewModel.createCallScreeningRoleIntent(context)?.let { roleLauncher.launch(it) }
-                        }
+                ScreenTab.SETUP -> {
+                    SetupScreen(
+                        report = readiness,
+                        isGuiding = setupFixer.isGuiding,
+                        onFixEverything = { setupFixer.fixEverything() },
+                        onFix = { setupFixer.fix(it) },
+                        onConfirm = { viewModel.confirmAutoStart() }
                     )
                 }
             }

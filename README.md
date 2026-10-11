@@ -21,15 +21,24 @@ It keeps working when the app is closed, swiped away from recent apps, or after 
 
 ## Setup on the phone
 
-Open the **Permissions** tab in the app and complete each item:
+The app opens on the **Setup** tab until the phone is fully prepared. It checks everything that can stop announcements on any Android brand, and the status only shows **Active** once every required item passes. Tap **Fix everything** to open each Android setting in turn; approve it, come back, and the next one opens automatically.
+
+Required:
 
 | Item | Why it is needed |
 | --- | --- |
-| Phone, Call log, Contacts | Detect incoming calls, get the number, and look up the contact name |
-| Notifications | Show the background "Monitoring incoming calls" notification |
-| Set as Caller ID App | Lets Android wake the app for every call, even when the phone has frozen it |
-| Unrestricted battery usage | Stops the system from killing the background service |
-| Auto-start (TECNO, Xiaomi, Oppo, Vivo, Huawei…) | Allows the app to start itself after a reboot or when a call arrives |
+| Phone and call log access | Detect incoming calls and get the number |
+| Contacts access | Speak saved names; lets Android wake the app for calls from contacts |
+| Caller ID app (Android 10+) | Android wakes the app for every call, even when the phone has frozen it |
+| Unrestricted battery use | Stops the system from putting the app to sleep |
+| Background activity allowed | Shown only if the user restricted the app's background use |
+| Manufacturer auto-start (TECNO, Xiaomi, Oppo, Vivo, Huawei, Asus) | These phones stop closed apps that are not on their auto-start list. Android cannot report this switch, so the user confirms it (a successful real call while closed also confirms it) |
+| Offline voice installed | A speech engine with a downloaded voice |
+| Announcer switched on | The background service is running |
+
+Recommended: notifications, "Pause app activity if unused" turned off, battery saver warning, ringer on, and a **real call test**: close the app and receive a call; once it is announced, the checklist records that this phone really works in the background.
+
+If a required item breaks later (for example after a system update), the background notification shows "Setup incomplete" with the item to fix.
 
 **Caller ID role and Truecaller:** only one app can hold the caller ID role. If Call Announcer takes it, Truecaller's spam blocking and caller pop-up may stop working; if Truecaller takes it back, announcements become unreliable while this app is closed. Calls are never blocked by Call Announcer.
 
@@ -105,14 +114,14 @@ app/src/main/java/com/example/
 ├── service/    Call screening service, foreground service, incoming call handling
 ├── receiver/   Phone state and boot receivers
 ├── tts/        Text-to-speech playback, audio cache, keep-alive track
-├── util/       Volume control, number formatting/matching, contact lookup, OEM auto-start screens
+├── util/       Setup checklist (ReadinessChecker), volume control, number matching, contact lookup, OEM auto-start screens
 ├── data/       Settings and call history (Room)
-└── ui/         Jetpack Compose screens: Dashboard, History, Settings, Permissions
+└── ui/         Jetpack Compose screens: Tester, Voice & Cadence, Log, Setup (with SetupFixer)
 ```
 
 ## Troubleshooting
 
-- **No announcement when the app is closed** — check every item in the Permissions tab, especially *Set as Caller ID App*, *Unrestricted battery*, and *Auto-start*.
+- **No announcement when the app is closed** — open the Setup tab and make sure every required item is green, especially *Caller ID app*, *Unrestricted battery use*, and *auto-start*.
 - **Announcement is quiet** — the alarm volume is raised automatically, but if "Announce Louder Than Ringtone" is off, the current alarm volume is used.
 - **Language missing from the list** — only voices downloaded on the phone are shown. Add one in Android *Settings → Text-to-speech → Install voice data*.
 - **Debug logs** — detailed logs only appear in debug builds:

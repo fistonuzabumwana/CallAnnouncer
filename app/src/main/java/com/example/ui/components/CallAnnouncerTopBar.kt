@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentGreen
 import com.example.ui.theme.AccentRed
 
@@ -38,6 +39,7 @@ import com.example.ui.theme.AccentRed
 @Composable
 fun CallAnnouncerTopBar(
     isEnabled: Boolean,
+    isReady: Boolean,
     isSpeaking: Boolean,
     onStopSpeech: () -> Unit
 ) {
@@ -91,9 +93,15 @@ fun CallAnnouncerTopBar(
                 }
             }
 
+            // "Active" is only shown once the setup checklist confirms calls will really be announced
+            val (statusText, statusColor) = when {
+                !isEnabled -> "Paused" to Color.Gray
+                !isReady -> "Setup needed" to AccentAmber
+                else -> "Active" to AccentGreen
+            }
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = if (isEnabled) AccentGreen.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant,
+                color = if (isEnabled) statusColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier
                     .padding(end = 12.dp)
                     .testTag("service_status_chip")
@@ -106,14 +114,14 @@ fun CallAnnouncerTopBar(
                         modifier = Modifier
                             .size(8.dp)
                             .clip(CircleShape)
-                            .background(if (isEnabled) AccentGreen else Color.Gray)
+                            .background(statusColor)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (isEnabled) "Active" else "Paused",
+                        text = statusText,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (isEnabled) AccentGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (isEnabled) statusColor else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }

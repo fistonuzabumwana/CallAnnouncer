@@ -20,6 +20,8 @@ import com.example.MainActivity
 import com.example.R
 import com.example.data.AppSettings
 import com.example.tts.DirectTtsAnnouncer
+import com.example.util.ReadinessChecker
+import com.example.util.SetupItem
 
 class CallAnnouncerService : Service() {
 
@@ -41,7 +43,7 @@ class CallAnnouncerService : Service() {
         DirectTtsAnnouncer.initialize(this)
 
         createNotificationChannel()
-        startForegroundServiceWithNotification("Monitoring incoming calls")
+        startForegroundServiceWithNotification(idleStatusText())
 
         registerTelephonyListeners()
     }
@@ -111,7 +113,7 @@ class CallAnnouncerService : Service() {
         DebugLog.d(tag, "App swiped from recents; foreground service continuing")
         // Keep foreground status notification active even when the app is closed
         if (appSettings.getSettings().isEnabled) {
-            updateNotification("Monitoring incoming calls")
+            updateNotification(idleStatusText())
         }
     }
 
@@ -129,9 +131,22 @@ class CallAnnouncerService : Service() {
             TelephonyManager.CALL_STATE_OFFHOOK,
             TelephonyManager.CALL_STATE_IDLE -> {
                 IncomingCallHandler.onCallEnded(this)
-                updateNotification("Monitoring incoming calls")
+                updateNotification(idleStatusText())
             }
         }
+    }
+
+    /** Warns from the notification when a phone setting (e.g. after an update) blocks announcements. */
+    private fun idleStatusText(): String {
+        val blocking = try {
+            ReadinessChecker.check(this).failingRequired
+                // The voice engine is still starting here, and this service is the one running
+                .filter { it.item != SetupItem.VOICE && it.item != SetupItem.ANNOUNCER_RUNNING }
+        } catch (e: Exception) {
+            emptyList()
+        }
+        return if (blocking.isEmpty()) "Monitoring incoming calls"
+        else "Setup incomplete: ${blocking.first().title}. Tap to fix."
     }
 
     private fun createNotificationChannel() {

@@ -299,6 +299,12 @@ object DirectTtsAnnouncer : TextToSpeech.OnInitListener {
         }
     }
 
+    /** Re-reads installed voices, e.g. after the user downloads one in Android settings. */
+    fun refreshAvailableLanguages() {
+        val engine = tts ?: return
+        if (_isReady.value) _availableLanguages.value = installedLanguages(engine)
+    }
+
     /** Languages with at least one voice installed on the phone (usable offline). */
     private fun installedLanguages(engine: TextToSpeech): List<Locale> = try {
         engine.voices.orEmpty()

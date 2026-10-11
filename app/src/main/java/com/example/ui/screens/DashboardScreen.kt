@@ -58,17 +58,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.AnnouncerSettings
-import com.example.ui.PermissionStatus
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentGreen
 import com.example.ui.theme.AccentRed
 import com.example.util.AnnouncementResult
+import com.example.util.ReadinessReport
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DashboardScreen(
     settings: AnnouncerSettings,
-    permissionStatus: PermissionStatus,
+    readiness: ReadinessReport,
     testPhoneNumber: String,
     testContactName: String,
     livePreview: AnnouncementResult,
@@ -79,7 +79,7 @@ fun DashboardScreen(
     onTestSpeak: () -> Unit,
     onSimulateCall: () -> Unit,
     onStopSpeech: () -> Unit,
-    onNavigateToPermissions: () -> Unit,
+    onNavigateToSetup: () -> Unit,
     onNavigateToSettings: () -> Unit
 ) {
     val scrollState = rememberScrollState()
@@ -136,7 +136,11 @@ fun DashboardScreen(
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
                         Text(
-                            text = if (settings.isEnabled) "Announcer Active" else "Announcer Paused",
+                            text = when {
+                                !settings.isEnabled -> "Announcer Paused"
+                                !readiness.isReady -> "Announcer On: Setup Needed"
+                                else -> "Announcer Active"
+                            },
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = if (settings.isEnabled) {
@@ -147,10 +151,10 @@ fun DashboardScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = if (settings.isEnabled) {
-                                "Listening for calls & reading numbers in pairs"
-                            } else {
-                                "Tap to turn on incoming call announcements"
+                            text = when {
+                                !settings.isEnabled -> "Tap to turn on incoming call announcements"
+                                !readiness.isReady -> "Finish the setup checklist so calls are announced when the app is closed"
+                                else -> "Listening for calls & reading numbers in pairs"
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = if (settings.isEnabled) {
@@ -174,12 +178,12 @@ fun DashboardScreen(
             }
         }
 
-        // Permission Banner (if not all granted)
-        if (!permissionStatus.allGranted) {
+        // Setup banner until every required check passes
+        if (!readiness.isReady) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onNavigateToPermissions() }
+                    .clickable { onNavigateToSetup() }
                     .testTag("permission_alert_card"),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
@@ -201,13 +205,13 @@ fun DashboardScreen(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Permissions Required",
+                            text = "${readiness.failingRequired.size} setup steps left",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Grant phone & contact permissions to detect incoming calls.",
+                            text = readiness.failingRequired.joinToString(", ") { it.title },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

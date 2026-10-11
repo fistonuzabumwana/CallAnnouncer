@@ -19,6 +19,7 @@ import com.example.util.DebugLog
 import com.example.util.DeviceStorage
 import com.example.util.PhoneCallNumberResolver
 import com.example.util.PhoneNumberMatcher
+import com.example.util.SetupState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -157,6 +158,12 @@ object IncomingCallHandler {
         yield()
         DebugLog.d(TAG, "Announcing: ${announcement.spokenText}")
         onAnnouncing?.invoke(announcement.callerIdentifier)
+        // Proves on this phone that calls reach the app while it is closed (shown in the setup checklist)
+        if (!SetupState.isAppInForeground &&
+            !AnnouncementVolumeController.getInstance(context).isRingerSilenced()
+        ) {
+            SetupState.recordBackgroundAnnouncement(context)
+        }
 
         DirectTtsAnnouncer.speak(
             context = context,
