@@ -64,6 +64,7 @@ object DirectTtsAnnouncer : TextToSpeech.OnInitListener {
             appContext = context.applicationContext
             val powerManager = appContext?.getSystemService(Context.POWER_SERVICE) as? PowerManager
             wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CallAnnouncer::DirectTtsWakeLock")
+                ?.apply { setReferenceCounted(false) }
             volumeController = AnnouncementVolumeController.getInstance(appContext!!)
         }
 
@@ -125,6 +126,8 @@ object DirectTtsAnnouncer : TextToSpeech.OnInitListener {
         }
     }
 
+    /** Synchronized so concurrent callers (UI and call handler) replace, rather than overlap, each other. */
+    @Synchronized
     fun speak(
         context: Context,
         text: String,
@@ -148,9 +151,11 @@ object DirectTtsAnnouncer : TextToSpeech.OnInitListener {
                     languageTag, duckRingtone, syncRingtoneVolume, skipWhenSilenced)
             } finally {
                 // A replaced announcement must not release the wake lock of the one that replaced it
-                if (announcementJob === coroutineContext[Job]) {
-                    _isSpeaking.value = false
-                    releaseWakeLock()
+                synchronized(this@DirectTtsAnnouncer) {
+                    if (announcementJob === coroutineContext[Job]) {
+                        _isSpeaking.value = false
+                        releaseWakeLock()
+                    }
                 }
                 onFinish?.invoke()
             }
@@ -359,6 +364,7 @@ object DirectTtsAnnouncer : TextToSpeech.OnInitListener {
         if (currentPlayer === player) currentPlayer = null
     }
 
+    @Synchronized
     fun stop() {
         announcementJob?.cancel()
         announcementJob = null

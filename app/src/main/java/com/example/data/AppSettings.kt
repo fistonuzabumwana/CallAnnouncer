@@ -27,14 +27,24 @@ data class AnnouncerSettings(
 
 class AppSettings private constructor(context: Context) {
 
-    @Volatile
-    private var prefs: SharedPreferences = DeviceStorage.prefs(context, PREFS_NAME) { migrated ->
-        prefs = migrated
-        _settingsFlow.value = loadSettings()
-    }
+    private val lock = Any()
+    private var prefs: SharedPreferences
+    private val _settingsFlow: MutableStateFlow<AnnouncerSettings>
+    val settingsFlow: StateFlow<AnnouncerSettings>
 
-    private val _settingsFlow = MutableStateFlow(loadSettings())
-    val settingsFlow: StateFlow<AnnouncerSettings> = _settingsFlow.asStateFlow()
+    init {
+        // The unlock callback runs on the main thread and may fire while this constructor runs elsewhere
+        synchronized(lock) {
+            prefs = DeviceStorage.prefs(context, PREFS_NAME) { migrated ->
+                synchronized(lock) {
+                    prefs = migrated
+                    _settingsFlow.value = loadSettings()
+                }
+            }
+            _settingsFlow = MutableStateFlow(loadSettings())
+            settingsFlow = _settingsFlow.asStateFlow()
+        }
+    }
 
     private fun loadSettings(): AnnouncerSettings {
         val isEnabled = prefs.getBoolean(KEY_IS_ENABLED, true)
@@ -73,7 +83,7 @@ class AppSettings private constructor(context: Context) {
         )
     }
 
-    fun updateSettings(transform: (AnnouncerSettings) -> AnnouncerSettings) {
+    fun updateSettings(transform: (AnnouncerSettings) -> AnnouncerSettings) = synchronized(lock) {
         val current = _settingsFlow.value
         val updated = transform(current)
         prefs.edit()
