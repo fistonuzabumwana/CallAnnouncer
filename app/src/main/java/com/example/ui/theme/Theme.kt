@@ -9,30 +9,33 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.example.data.ThemeMode
 
 private val DarkColorScheme = darkColorScheme(
     primary = Indigo300,
     onPrimary = Indigo900,
     primaryContainer = Indigo800,
     onPrimaryContainer = Indigo100,
-    secondary = Ink300,
-    onSecondary = Ink900,
-    secondaryContainer = Ink700,
-    onSecondaryContainer = Ink100,
+    secondary = Coal300,
+    onSecondary = Black,
+    secondaryContainer = Coal700,
+    onSecondaryContainer = Coal100,
     tertiary = Indigo200,
-    background = Ink950,
-    onBackground = Ink100,
-    surface = Ink950,
-    onSurface = Ink100,
-    surfaceVariant = Ink800,
-    onSurfaceVariant = Ink400,
-    surfaceContainerLowest = Ink950,
-    surfaceContainerLow = Ink900,
-    surfaceContainer = Ink850,
-    surfaceContainerHigh = Ink800,
-    surfaceContainerHighest = Ink700,
-    outline = Ink600,
-    outlineVariant = Ink700,
+    background = Black,
+    onBackground = Coal100,
+    surface = Black,
+    onSurface = Coal100,
+    surfaceVariant = Coal800,
+    onSurfaceVariant = Coal400,
+    surfaceContainerLowest = Black,
+    surfaceContainerLow = Coal900,
+    surfaceContainer = Coal850,
+    surfaceContainerHigh = Coal800,
+    surfaceContainerHighest = Coal700,
+    outline = Coal600,
+    outlineVariant = Coal700,
+    inverseSurface = Coal100,
+    inverseOnSurface = Black,
     error = AccentRed,
     onError = Color.White
 )
@@ -76,6 +79,13 @@ private val AppShapes = Shapes(
  * The brand palette is used on every phone (no wallpaper-based dynamic color),
  * so the app looks the same everywhere and status colors stay readable.
  */
+@Composable
+fun ThemeMode.isDark(): Boolean = when (this) {
+    ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    ThemeMode.LIGHT -> false
+    ThemeMode.DARK -> true
+}
+
 @Composable
 fun MyApplicationTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),

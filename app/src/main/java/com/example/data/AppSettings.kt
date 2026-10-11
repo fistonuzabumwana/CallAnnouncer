@@ -22,8 +22,11 @@ data class AnnouncerSettings(
     val duckRingtone: Boolean = true,
     val syncRingtoneVolume: Boolean = true,
     /** BCP-47 language tag for the announcement voice; empty means the phone's language. */
-    val voiceLanguage: String = ""
+    val voiceLanguage: String = "",
+    val themeMode: ThemeMode = ThemeMode.SYSTEM
 )
+
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 class AppSettings private constructor(context: Context) {
 
@@ -65,6 +68,8 @@ class AppSettings private constructor(context: Context) {
         val duckRingtone = prefs.getBoolean(KEY_DUCK_RINGTONE, true)
         val syncRingtone = prefs.getBoolean(KEY_SYNC_RINGTONE, true)
         val voiceLanguage = prefs.getString(KEY_VOICE_LANGUAGE, "") ?: ""
+        val themeMode = ThemeMode.entries.firstOrNull { it.name == prefs.getString(KEY_THEME_MODE, null) }
+            ?: ThemeMode.SYSTEM
 
         return AnnouncerSettings(
             isEnabled = isEnabled,
@@ -79,7 +84,8 @@ class AppSettings private constructor(context: Context) {
             announceUnknowns = announceUnknowns,
             duckRingtone = duckRingtone,
             syncRingtoneVolume = syncRingtone,
-            voiceLanguage = voiceLanguage
+            voiceLanguage = voiceLanguage,
+            themeMode = themeMode
         )
     }
 
@@ -100,6 +106,7 @@ class AppSettings private constructor(context: Context) {
             .putBoolean(KEY_DUCK_RINGTONE, updated.duckRingtone)
             .putBoolean(KEY_SYNC_RINGTONE, updated.syncRingtoneVolume)
             .putString(KEY_VOICE_LANGUAGE, updated.voiceLanguage)
+            .putString(KEY_THEME_MODE, updated.themeMode.name)
             .apply()
 
         _settingsFlow.value = updated
@@ -122,6 +129,7 @@ class AppSettings private constructor(context: Context) {
         private const val KEY_DUCK_RINGTONE = "duck_ringtone"
         private const val KEY_SYNC_RINGTONE = "sync_ringtone"
         private const val KEY_VOICE_LANGUAGE = "voice_language"
+        private const val KEY_THEME_MODE = "theme_mode"
 
         @Volatile
         private var INSTANCE: AppSettings? = null

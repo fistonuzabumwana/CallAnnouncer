@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.AppDatabase
 import com.example.data.AppSettings
 import com.example.data.CallLogEntity
+import com.example.data.ThemeMode
 import com.example.service.CallAnnouncerService
 import com.example.tts.DirectTtsAnnouncer
 import com.example.util.AnnouncementBuilder
@@ -172,6 +173,10 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
 
     fun updateVoiceLanguage(languageTag: String) {
         appSettings.updateSettings { it.copy(voiceLanguage = languageTag) }
+    }
+
+    fun updateThemeMode(mode: ThemeMode) {
+        appSettings.updateSettings { it.copy(themeMode = mode) }
     }
 
     fun toggleAnnounceContacts() {

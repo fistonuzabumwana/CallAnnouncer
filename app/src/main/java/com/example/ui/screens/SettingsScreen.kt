@@ -16,7 +16,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeDown
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.BrightnessAuto
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Dialpad
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonOff
@@ -46,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.example.data.AnnouncerSettings
+import com.example.data.ThemeMode
 import com.example.ui.components.GroupDivider
 import com.example.ui.components.ListRow
 import com.example.ui.components.ScreenColumn
@@ -86,7 +90,8 @@ fun SettingsScreen(
     onToggleUnknowns: () -> Unit,
     onToggleDuckRingtone: () -> Unit,
     onToggleSyncRingtone: () -> Unit,
-    onTestSettings: () -> Unit
+    onTestSettings: () -> Unit,
+    onThemeModeChange: (ThemeMode) -> Unit
 ) {
     ScreenColumn {
         Section(title = "Voice") {
@@ -241,8 +246,45 @@ fun SettingsScreen(
             )
         }
 
+        Section(title = "Appearance") {
+            Column(modifier = Modifier.padding(Spacing.lg)) {
+                Text("Theme", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(Spacing.sm))
+                val modes = ThemeMode.entries
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    modes.forEachIndexed { index, mode ->
+                        SegmentedButton(
+                            selected = settings.themeMode == mode,
+                            onClick = { onThemeModeChange(mode) },
+                            shape = SegmentedButtonDefaults.itemShape(index, modes.size),
+                            icon = {},
+                            modifier = Modifier.testTag("theme_${mode.name.lowercase()}")
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(mode.icon(), contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(mode.label())
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Spacer(Modifier.height(Spacing.sm))
     }
+}
+
+private fun ThemeMode.label() = when (this) {
+    ThemeMode.SYSTEM -> "System"
+    ThemeMode.LIGHT -> "Light"
+    ThemeMode.DARK -> "Dark"
+}
+
+private fun ThemeMode.icon() = when (this) {
+    ThemeMode.SYSTEM -> Icons.Default.BrightnessAuto
+    ThemeMode.LIGHT -> Icons.Default.LightMode
+    ThemeMode.DARK -> Icons.Default.DarkMode
 }
 
 @Composable

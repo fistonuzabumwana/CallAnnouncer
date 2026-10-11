@@ -5,13 +5,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -46,7 +46,7 @@ enum class ScreenTab(
     val tag: String
 ) {
     DASHBOARD("Home", "Call Announcer", Icons.Filled.Home, Icons.Outlined.Home, "tab_dashboard"),
-    SETTINGS("Voice", "Voice", Icons.Filled.GraphicEq, Icons.Outlined.GraphicEq, "tab_settings"),
+    SETTINGS("Settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings, "tab_settings"),
     HISTORY("History", "History", Icons.Filled.History, Icons.Outlined.History, "tab_history"),
     SETUP("Setup", "Setup", Icons.Filled.Shield, Icons.Outlined.Shield, "tab_setup")
 }
@@ -157,7 +157,8 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
                         onToggleUnknowns = { viewModel.toggleAnnounceUnknowns() },
                         onToggleDuckRingtone = { viewModel.toggleDuckRingtone() },
                         onToggleSyncRingtone = { viewModel.toggleSyncRingtoneVolume() },
-                        onTestSettings = { viewModel.testSpeakWithSettings() }
+                        onTestSettings = { viewModel.testSpeakWithSettings() },
+                        onThemeModeChange = { viewModel.updateThemeMode(it) }
                     )
 
                     ScreenTab.HISTORY -> HistoryScreen(
