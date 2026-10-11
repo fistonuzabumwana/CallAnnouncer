@@ -20,13 +20,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Numbers
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.VolumeDown
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -63,6 +64,8 @@ fun SettingsScreen(
     onSpeechPitchChange: (Float) -> Unit,
     onToggleContacts: () -> Unit,
     onToggleUnknowns: () -> Unit,
+    onToggleDuckRingtone: () -> Unit,
+    onToggleSyncRingtone: () -> Unit,
     onTestSettings: () -> Unit
 ) {
     val scrollState = rememberScrollState()
@@ -74,6 +77,90 @@ fun SettingsScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Section: Ringtone Volume Sync & Audio Ducking (NEW)
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("ringtone_volume_sync_card"),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(18.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.VolumeUp,
+                        contentDescription = "Ringtone Volume Controls",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Ringtone Volume & Audio Ducking",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Toggle 1: Sync Announcer Volume with Ringtone
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Sync Announcer with Ringtone Volume",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "If ringtone is at 90%, announcer speaks at 90%. If at 50%, announcer speaks at 50%.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = settings.syncRingtoneVolume,
+                        onCheckedChange = { onToggleSyncRingtone() },
+                        modifier = Modifier.testTag("toggle_sync_ringtone_switch")
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Toggle 2: Duck Ringtone Volume during Announcement
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Lower Ringtone During Announcement",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Temporarily lowers the ringtone so the caller voice is loud & clear, then restores ringtone volume after speech finishes.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = settings.duckRingtone,
+                        onCheckedChange = { onToggleDuckRingtone() },
+                        modifier = Modifier.testTag("toggle_duck_ringtone_switch")
+                    )
+                }
+            }
+        }
+
         // Section: Number Grouping & Cadence
         Card(
             modifier = Modifier
@@ -275,16 +362,29 @@ fun SettingsScreen(
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = "Gives your ringtone a moment to start before speaking",
+                    text = "The ringtone plays at full volume during this delay, then lowers when speech begins.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
+                Spacer(modifier = Modifier.height(6.dp))
+
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    SuggestionChip(onClick = { onInitialDelayChange(0L) }, label = { Text("0s") })
+                    SuggestionChip(onClick = { onInitialDelayChange(1000L) }, label = { Text("1s") })
+                    SuggestionChip(onClick = { onInitialDelayChange(2000L) }, label = { Text("2s") })
+                    SuggestionChip(onClick = { onInitialDelayChange(3000L) }, label = { Text("3s") })
+                    SuggestionChip(onClick = { onInitialDelayChange(4000L) }, label = { Text("4s") })
+                }
+
                 Slider(
                     value = settings.initialDelayMs.toFloat(),
                     onValueChange = { onInitialDelayChange(it.toLong()) },
-                    valueRange = 0f..3000f,
-                    steps = 5,
+                    valueRange = 0f..5000f,
+                    steps = 9,
                     modifier = Modifier.testTag("initial_delay_slider")
                 )
             }

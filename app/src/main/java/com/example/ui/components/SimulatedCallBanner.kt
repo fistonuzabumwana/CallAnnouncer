@@ -178,13 +178,22 @@ fun SimulatedCallBanner(
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = "Speaking: \"${announcementResult.spokenText}\"",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                    )
+                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                        Text(
+                            text = "Speaking: \"${announcementResult.spokenText}\"",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        if (isSpeaking) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "🔉 Ringtone ducked • Announcer volume synchronized with call • Restores after speech finishes",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(18.dp))

@@ -12,12 +12,14 @@ data class AnnouncerSettings(
     val prefixText: String = "Incoming call from",
     val pairMode: PairSpokenMode = PairSpokenMode.PAIRED_NUMBERS,
     val repeatCount: Int = 2,
-    val initialDelayMs: Long = 1000L,
+    val initialDelayMs: Long = 2000L,
     val repeatDelayMs: Long = 1500L,
     val speechRate: Float = 1.0f,
     val speechPitch: Float = 1.0f,
     val announceContacts: Boolean = true,
-    val announceUnknowns: Boolean = true
+    val announceUnknowns: Boolean = true,
+    val duckRingtone: Boolean = true,
+    val syncRingtoneVolume: Boolean = true
 )
 
 class AppSettings private constructor(context: Context) {
@@ -44,6 +46,8 @@ class AppSettings private constructor(context: Context) {
         val speechPitch = prefs.getFloat(KEY_SPEECH_PITCH, 1.0f)
         val announceContacts = prefs.getBoolean(KEY_ANNOUNCE_CONTACTS, true)
         val announceUnknowns = prefs.getBoolean(KEY_ANNOUNCE_UNKNOWNS, true)
+        val duckRingtone = prefs.getBoolean(KEY_DUCK_RINGTONE, true)
+        val syncRingtone = prefs.getBoolean(KEY_SYNC_RINGTONE, true)
 
         return AnnouncerSettings(
             isEnabled = isEnabled,
@@ -55,7 +59,9 @@ class AppSettings private constructor(context: Context) {
             speechRate = speechRate,
             speechPitch = speechPitch,
             announceContacts = announceContacts,
-            announceUnknowns = announceUnknowns
+            announceUnknowns = announceUnknowns,
+            duckRingtone = duckRingtone,
+            syncRingtoneVolume = syncRingtone
         )
     }
 
@@ -73,6 +79,8 @@ class AppSettings private constructor(context: Context) {
             .putFloat(KEY_SPEECH_PITCH, updated.speechPitch)
             .putBoolean(KEY_ANNOUNCE_CONTACTS, updated.announceContacts)
             .putBoolean(KEY_ANNOUNCE_UNKNOWNS, updated.announceUnknowns)
+            .putBoolean(KEY_DUCK_RINGTONE, updated.duckRingtone)
+            .putBoolean(KEY_SYNC_RINGTONE, updated.syncRingtoneVolume)
             .apply()
 
         _settingsFlow.value = updated
@@ -92,6 +100,8 @@ class AppSettings private constructor(context: Context) {
         private const val KEY_SPEECH_PITCH = "speech_pitch"
         private const val KEY_ANNOUNCE_CONTACTS = "announce_contacts"
         private const val KEY_ANNOUNCE_UNKNOWNS = "announce_unknowns"
+        private const val KEY_DUCK_RINGTONE = "duck_ringtone"
+        private const val KEY_SYNC_RINGTONE = "sync_ringtone"
 
         @Volatile
         private var INSTANCE: AppSettings? = null

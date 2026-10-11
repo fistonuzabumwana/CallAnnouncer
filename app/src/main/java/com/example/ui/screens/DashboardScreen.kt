@@ -316,6 +316,10 @@ fun DashboardScreen(
                         label = { Text("07 85 46") }
                     )
                     SuggestionChip(
+                        onClick = { onPhoneNumberChange("070546") },
+                        label = { Text("07 05 46 (0 in between)") }
+                    )
+                    SuggestionChip(
                         onClick = { onPhoneNumberChange("0785461234") },
                         label = { Text("07 85 46 12 34") }
                     )
@@ -345,10 +349,35 @@ fun DashboardScreen(
                             }
                         }
                     },
-                    placeholder = { Text("e.g. Alice (optional)") },
+                    placeholder = { Text("e.g. Yves MTN, Alice (optional)") },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp)
                 )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Presets for contact names, highlighting MTN exception
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    SuggestionChip(
+                        onClick = { onContactNameChange("Yves MTN") },
+                        label = { Text("Yves MTN") }
+                    )
+                    SuggestionChip(
+                        onClick = { onContactNameChange("Yves mtn") },
+                        label = { Text("Yves mtn") }
+                    )
+                    SuggestionChip(
+                        onClick = { onContactNameChange("Eve") },
+                        label = { Text("Eve") }
+                    )
+                    SuggestionChip(
+                        onClick = { onContactNameChange("") },
+                        label = { Text("Empty (Unknown Number)") }
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(14.dp))
 
@@ -385,6 +414,22 @@ fun DashboardScreen(
                                 fontWeight = FontWeight.SemiBold,
                                 color = if (livePreview.isKnownContact) AccentGreen else AccentAmber
                             )
+                        }
+
+                        if (livePreview.hasMtnCarrier) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                            ) {
+                                Text(
+                                    text = "★ MTN Exception: Spoken as 'M T N' (never as 'mountain')",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))

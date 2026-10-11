@@ -11,12 +11,11 @@ import com.example.data.AppDatabase
 import com.example.data.AppSettings
 import com.example.data.CallLogEntity
 import com.example.service.CallAnnouncerService
-import com.example.tts.TtsManager
+import com.example.tts.DirectTtsAnnouncer
 import com.example.util.AnnouncementBuilder
 import com.example.util.AnnouncementResult
 import com.example.util.PairSpokenMode
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -38,7 +37,6 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
 
     private val appSettings = AppSettings.getInstance(application)
     private val database = AppDatabase.getInstance(application)
-    val ttsManager = TtsManager(application)
 
     val settings = appSettings.settingsFlow
 
@@ -46,14 +44,14 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
         .getAllAnnouncements()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val isTtsSpeaking = ttsManager.isSpeaking
-    val isTtsReady = ttsManager.isReady
+    val isTtsSpeaking = DirectTtsAnnouncer.isSpeaking
+    val isTtsReady = DirectTtsAnnouncer.isReady
 
     // Simulator input state
     private val _testPhoneNumber = MutableStateFlow("078546")
     val testPhoneNumber: StateFlow<String> = _testPhoneNumber.asStateFlow()
 
-    private val _testContactName = MutableStateFlow("")
+    private val _testContactName = MutableStateFlow("Yves MTN")
     val testContactName: StateFlow<String> = _testContactName.asStateFlow()
 
     private val _isSimulatingRinging = MutableStateFlow(false)
@@ -65,12 +63,11 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
     private var simulationJob: Job? = null
 
     init {
+        DirectTtsAnnouncer.initialize(application)
         checkPermissions(application)
-        // If enabled and permissions granted, ensure service is running
+
         if (settings.value.isEnabled) {
-            try {
-                CallAnnouncerService.start(application)
-            } catch (_: Exception) {}
+            CallAnnouncerService.start(application)
         }
     }
 
@@ -137,7 +134,7 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
             CallAnnouncerService.start(context)
         } else {
             CallAnnouncerService.stop(context)
-            ttsManager.stop()
+            DirectTtsAnnouncer.stop()
         }
     }
 
@@ -173,29 +170,43 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
         appSettings.updateSettings { it.copy(announceUnknowns = !it.announceUnknowns) }
     }
 
+    fun toggleDuckRingtone() {
+        appSettings.updateSettings { it.copy(duckRingtone = !it.duckRingtone) }
+    }
+
+    fun toggleSyncRingtoneVolume() {
+        appSettings.updateSettings { it.copy(syncRingtoneVolume = !it.syncRingtoneVolume) }
+    }
+
     fun testSpeakPreview() {
         val preview = getLivePreview()
         val s = settings.value
-        ttsManager.speakAnnouncement(
+        DirectTtsAnnouncer.speak(
+            context = getApplication(),
             text = preview.spokenText,
             repeatCount = 1,
             initialDelayMs = 0L,
             repeatDelayMs = 1200L,
             rate = s.speechRate,
-            pitch = s.speechPitch
+            pitch = s.speechPitch,
+            duckRingtone = false,
+            syncRingtoneVolume = s.syncRingtoneVolume
         )
     }
 
     fun testSpeakWithSettings() {
         val preview = getLivePreview()
         val s = settings.value
-        ttsManager.speakAnnouncement(
+        DirectTtsAnnouncer.speak(
+            context = getApplication(),
             text = preview.spokenText,
             repeatCount = s.repeatCount,
             initialDelayMs = s.initialDelayMs,
             repeatDelayMs = s.repeatDelayMs,
             rate = s.speechRate,
-            pitch = s.speechPitch
+            pitch = s.speechPitch,
+            duckRingtone = s.duckRingtone,
+            syncRingtoneVolume = s.syncRingtoneVolume
         )
     }
 
@@ -222,13 +233,16 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
         }
 
         simulationJob = viewModelScope.launch {
-            ttsManager.speakAnnouncement(
+            DirectTtsAnnouncer.speak(
+                context = getApplication(),
                 text = preview.spokenText,
                 repeatCount = s.repeatCount,
                 initialDelayMs = s.initialDelayMs,
                 repeatDelayMs = s.repeatDelayMs,
                 rate = s.speechRate,
                 pitch = s.speechPitch,
+                duckRingtone = s.duckRingtone,
+                syncRingtoneVolume = s.syncRingtoneVolume,
                 onFinish = {
                     _isSimulatingRinging.value = false
                 }
@@ -239,20 +253,21 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
     fun answerSimulatedCall() {
         simulationJob?.cancel()
         simulationJob = null
-        ttsManager.stop()
+        DirectTtsAnnouncer.stop()
         _isSimulatingRinging.value = false
     }
 
     fun stopTts() {
         simulationJob?.cancel()
         simulationJob = null
-        ttsManager.stop()
+        DirectTtsAnnouncer.stop()
         _isSimulatingRinging.value = false
     }
 
     fun replayCallLog(callLog: CallLogEntity) {
         val s = settings.value
-        ttsManager.speakAnnouncement(
+        DirectTtsAnnouncer.speak(
+            context = getApplication(),
             text = callLog.spokenAnnouncement,
             repeatCount = 1,
             initialDelayMs = 0L,
@@ -275,6 +290,7 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
 
     override fun onCleared() {
         super.onCleared()
-        ttsManager.shutdown()
+        // Stop current speech playback, but keep DirectTtsAnnouncer available for background calls
+        stopTts()
     }
 }

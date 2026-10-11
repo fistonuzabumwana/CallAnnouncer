@@ -179,6 +179,8 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
                         onSpeechPitchChange = { viewModel.updateSpeechPitch(it) },
                         onToggleContacts = { viewModel.toggleAnnounceContacts() },
                         onToggleUnknowns = { viewModel.toggleAnnounceUnknowns() },
+                        onToggleDuckRingtone = { viewModel.toggleDuckRingtone() },
+                        onToggleSyncRingtone = { viewModel.toggleSyncRingtoneVolume() },
                         onTestSettings = { viewModel.testSpeakWithSettings() }
                     )
                 }

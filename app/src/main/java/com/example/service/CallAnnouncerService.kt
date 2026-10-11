@@ -10,7 +10,6 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import android.os.PowerManager
 import android.telephony.PhoneStateListener
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
@@ -21,9 +20,10 @@ import com.example.R
 import com.example.data.AppDatabase
 import com.example.data.AppSettings
 import com.example.data.CallLogEntity
-import com.example.tts.TtsManager
+import com.example.tts.DirectTtsAnnouncer
 import com.example.util.AnnouncementBuilder
 import com.example.util.ContactLookupHelper
+import com.example.util.PhoneCallNumberResolver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -34,14 +34,12 @@ class CallAnnouncerService : Service() {
     private val tag = "CallAnnouncerService"
     private val scope = CoroutineScope(Dispatchers.IO + Job())
 
-    private lateinit var ttsManager: TtsManager
     private lateinit var appSettings: AppSettings
     private lateinit var database: AppDatabase
     private var telephonyManager: TelephonyManager? = null
 
     private var telephonyCallback: TelephonyCallback? = null
     private var legacyListener: PhoneStateListener? = null
-    private var wakeLock: PowerManager.WakeLock? = null
 
     private var lastIncomingNumber: String? = null
     private var isCurrentlyRinging = false
@@ -49,12 +47,12 @@ class CallAnnouncerService : Service() {
     override fun onCreate() {
         super.onCreate()
         Log.d(tag, "Service onCreate")
+        isServiceRunning = true
+        instance = this
+
         appSettings = AppSettings.getInstance(this)
         database = AppDatabase.getInstance(this)
-        ttsManager = TtsManager(this)
-
-        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
-        wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CallAnnouncer::WakeLock")
+        DirectTtsAnnouncer.initialize(this)
 
         createNotificationChannel()
         startForegroundServiceWithNotification("Monitoring incoming calls")
@@ -100,6 +98,8 @@ class CallAnnouncerService : Service() {
 
         when (action) {
             ACTION_STOP_SERVICE -> {
+                isServiceRunning = false
+                instance = null
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return START_NOT_STICKY
@@ -120,23 +120,30 @@ class CallAnnouncerService : Service() {
         return START_STICKY
     }
 
-    fun handleCallState(state: Int, numberFromIntent: String?) {
-        val number = numberFromIntent ?: lastIncomingNumber
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        Log.d(tag, "App swiped from recents; foreground service continuing")
+        // Keep foreground status notification active even when the app is closed
+        if (appSettings.getSettings().isEnabled) {
+            updateNotification("Monitoring incoming calls")
+        }
+    }
 
+    fun handleCallState(state: Int, numberFromIntent: String?) {
         when (state) {
             TelephonyManager.CALL_STATE_RINGING -> {
                 isCurrentlyRinging = true
-                if (!numberFromIntent.isNullOrBlank()) {
-                    lastIncomingNumber = numberFromIntent
+                val resolvedNumber = PhoneCallNumberResolver.resolveIncomingNumber(this, numberFromIntent ?: lastIncomingNumber)
+                if (!resolvedNumber.isNullOrBlank()) {
+                    lastIncomingNumber = resolvedNumber
                 }
-                triggerAnnouncement(number)
+                triggerAnnouncement(resolvedNumber)
             }
             TelephonyManager.CALL_STATE_OFFHOOK,
             TelephonyManager.CALL_STATE_IDLE -> {
                 isCurrentlyRinging = false
                 lastIncomingNumber = null
-                ttsManager.stop()
-                releaseWakeLock()
+                DirectTtsAnnouncer.stop()
                 updateNotification("Monitoring incoming calls")
             }
         }
@@ -148,8 +155,6 @@ class CallAnnouncerService : Service() {
             Log.d(tag, "Announcer is disabled in settings; skipping")
             return
         }
-
-        acquireWakeLock()
 
         scope.launch {
             val contactName = ContactLookupHelper.lookupContactName(this@CallAnnouncerService, rawNumber)
@@ -163,12 +168,10 @@ class CallAnnouncerService : Service() {
             // Check contact filters
             if (announcement.isKnownContact && !settings.announceContacts) {
                 Log.d(tag, "Known contact announcements disabled")
-                releaseWakeLock()
                 return@launch
             }
             if (!announcement.isKnownContact && !settings.announceUnknowns) {
                 Log.d(tag, "Unknown caller announcements disabled")
-                releaseWakeLock()
                 return@launch
             }
 
@@ -190,16 +193,18 @@ class CallAnnouncerService : Service() {
 
             updateNotification("Announcing: ${announcement.callerIdentifier}")
 
-            // Speak via TTS
-            ttsManager.speakAnnouncement(
+            // Speak via DirectTtsAnnouncer
+            DirectTtsAnnouncer.speak(
+                context = this@CallAnnouncerService,
                 text = announcement.spokenText,
                 repeatCount = settings.repeatCount,
                 initialDelayMs = settings.initialDelayMs,
                 repeatDelayMs = settings.repeatDelayMs,
                 rate = settings.speechRate,
                 pitch = settings.speechPitch,
+                duckRingtone = settings.duckRingtone,
+                syncRingtoneVolume = settings.syncRingtoneVolume,
                 onFinish = {
-                    releaseWakeLock()
                     if (isCurrentlyRinging) {
                         updateNotification("Ringing: ${announcement.callerIdentifier}")
                     } else {
@@ -207,26 +212,6 @@ class CallAnnouncerService : Service() {
                     }
                 }
             )
-        }
-    }
-
-    private fun acquireWakeLock() {
-        try {
-            if (wakeLock?.isHeld == false) {
-                wakeLock?.acquire(30000L) // Max 30 seconds
-            }
-        } catch (e: Exception) {
-            Log.w(tag, "Failed to acquire wake lock", e)
-        }
-    }
-
-    private fun releaseWakeLock() {
-        try {
-            if (wakeLock?.isHeld == true) {
-                wakeLock?.release()
-            }
-        } catch (e: Exception) {
-            Log.w(tag, "Failed to release wake lock", e)
         }
     }
 
@@ -310,6 +295,9 @@ class CallAnnouncerService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         Log.d(tag, "Service onDestroy")
+        isServiceRunning = false
+        instance = null
+
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && telephonyCallback != null) {
                 telephonyManager?.unregisterTelephonyCallback(telephonyCallback!!)
@@ -321,8 +309,7 @@ class CallAnnouncerService : Service() {
             Log.w(tag, "Failed to unregister telephony listener", e)
         }
 
-        ttsManager.shutdown()
-        releaseWakeLock()
+        DirectTtsAnnouncer.stop()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -338,6 +325,12 @@ class CallAnnouncerService : Service() {
 
         const val EXTRA_INCOMING_NUMBER = "extra_incoming_number"
         const val EXTRA_CALL_STATE = "extra_call_state"
+
+        @Volatile
+        var isServiceRunning = false
+
+        @Volatile
+        var instance: CallAnnouncerService? = null
 
         fun start(context: Context) {
             try {
