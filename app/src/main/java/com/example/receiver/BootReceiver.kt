@@ -18,8 +18,8 @@ class BootReceiver : BroadcastReceiver() {
             action == Intent.ACTION_MY_PACKAGE_REPLACED ||
             action == "android.intent.action.QUICKBOOT_POWERON"
         ) {
-            val isEnabled = AppSettings.getInstance(context).getSettings().isEnabled
-            if (isEnabled) {
+            val settings = AppSettings.getInstance(context).getSettings()
+            if (settings.isEnabled && settings.hasAcceptedPrivacyPolicy) {
                 DebugLog.d("BootReceiver", "Call Announcer is enabled; starting service after $action")
                 CallAnnouncerService.start(context)
             }

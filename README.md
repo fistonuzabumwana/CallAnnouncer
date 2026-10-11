@@ -21,7 +21,9 @@ It keeps working when the app is closed, swiped away from recent apps, or after 
 
 ## Setup on the phone
 
-The app opens on the **Setup** tab until the phone is fully prepared. It checks everything that can stop announcements on any Android brand, and the status only shows **Active** once every required item passes. Tap **Fix everything** to open each Android setting in turn; approve it, come back, and the next one opens automatically.
+On first launch the app shows its privacy policy. Accepting is remembered, so it's asked only once (or again if the policy version changes). Declining closes the app, and no calls are announced until the policy is accepted. The policy can be reread anytime from **Settings → About → Privacy policy**.
+
+After that, the app opens on the **Setup** tab until the phone is fully prepared. It checks everything that can stop announcements on any Android brand, and the status only shows **Active** once every required item passes. Tap **Fix everything** to open each Android setting in turn; approve it, come back, and the next one opens automatically.
 
 Required:
 

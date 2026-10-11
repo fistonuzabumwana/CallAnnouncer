@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.AnnouncerSettings
 import com.example.data.AppDatabase
 import com.example.data.AppSettings
 import com.example.data.CallLogEntity
@@ -62,7 +63,7 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
     init {
         DirectTtsAnnouncer.initialize(application)
 
-        if (settings.value.isEnabled) {
+        if (settings.value.isEnabled && settings.value.hasAcceptedPrivacyPolicy) {
             CallAnnouncerService.start(application)
         }
 
@@ -82,6 +83,17 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
         val context = getApplication<Application>()
         DirectTtsAnnouncer.refreshAvailableLanguages()
         _readiness.value = ReadinessChecker.check(context)
+    }
+
+    fun acceptPrivacyPolicy() {
+        appSettings.updateSettings { it.copy(acceptedPrivacyVersion = AnnouncerSettings.PRIVACY_POLICY_VERSION) }
+        if (settings.value.isEnabled) {
+            CallAnnouncerService.start(getApplication())
+        }
+        viewModelScope.launch {
+            delay(1500)
+            refreshReadiness()
+        }
     }
 
     fun confirmAutoStart(confirmed: Boolean = true) {

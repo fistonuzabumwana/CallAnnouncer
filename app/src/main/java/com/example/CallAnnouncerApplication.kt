@@ -19,9 +19,9 @@ class CallAnnouncerApplication : Application() {
         // Eagerly prepare TextToSpeech engine
         DirectTtsAnnouncer.initialize(this)
 
-        // If announcer is enabled, start the background service
-        val isEnabled = AppSettings.getInstance(this).getSettings().isEnabled
-        if (isEnabled) {
+        // If announcer is enabled and the privacy policy accepted, start the background service
+        val settings = AppSettings.getInstance(this).getSettings()
+        if (settings.isEnabled && settings.hasAcceptedPrivacyPolicy) {
             CallAnnouncerService.start(this)
         }
     }

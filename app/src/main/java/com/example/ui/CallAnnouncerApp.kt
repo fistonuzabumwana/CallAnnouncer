@@ -1,5 +1,6 @@
 package com.example.ui
 
+import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,11 +31,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import com.example.ui.components.CallAnnouncerTopBar
 import com.example.ui.components.SimulatedCallBanner
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.HistoryScreen
+import com.example.ui.screens.PrivacyPolicyScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.SetupScreen
 
@@ -66,6 +69,23 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
     val isSimulatingRinging by viewModel.isSimulatingRinging.collectAsState()
     val readiness by viewModel.readiness.collectAsState()
     val voiceLanguages by viewModel.availableVoiceLanguages.collectAsState()
+
+    val activity = LocalContext.current as? Activity
+
+    if (!settings.hasAcceptedPrivacyPolicy) {
+        PrivacyPolicyScreen(
+            onAccept = { viewModel.acceptPrivacyPolicy() },
+            onDecline = { activity?.finishAndRemoveTask() }
+        )
+        return
+    }
+
+    var showPrivacyPolicy by rememberSaveable { mutableStateOf(false) }
+    if (showPrivacyPolicy) {
+        BackHandler { showPrivacyPolicy = false }
+        PrivacyPolicyScreen(onClose = { showPrivacyPolicy = false })
+        return
+    }
 
     val livePreview = viewModel.getLivePreview()
     val setupFixer = rememberSetupFixer(viewModel)
@@ -158,7 +178,8 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
                         onToggleDuckRingtone = { viewModel.toggleDuckRingtone() },
                         onToggleSyncRingtone = { viewModel.toggleSyncRingtoneVolume() },
                         onTestSettings = { viewModel.testSpeakWithSettings() },
-                        onThemeModeChange = { viewModel.updateThemeMode(it) }
+                        onThemeModeChange = { viewModel.updateThemeMode(it) },
+                        onOpenPrivacyPolicy = { showPrivacyPolicy = true }
                     )
 
                     ScreenTab.HISTORY -> HistoryScreen(

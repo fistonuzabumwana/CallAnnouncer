@@ -24,6 +24,8 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -91,7 +93,8 @@ fun SettingsScreen(
     onToggleDuckRingtone: () -> Unit,
     onToggleSyncRingtone: () -> Unit,
     onTestSettings: () -> Unit,
-    onThemeModeChange: (ThemeMode) -> Unit
+    onThemeModeChange: (ThemeMode) -> Unit,
+    onOpenPrivacyPolicy: () -> Unit
 ) {
     ScreenColumn {
         Section(title = "Voice") {
@@ -268,6 +271,22 @@ fun SettingsScreen(
                         }
                     }
                 }
+            }
+        }
+
+        Section(title = "About") {
+            ListRow(
+                icon = Icons.Default.Shield,
+                title = "Privacy policy",
+                subtitle = "Everything stays on this phone",
+                onClick = onOpenPrivacyPolicy,
+                modifier = Modifier.testTag("privacy_policy_row")
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
 

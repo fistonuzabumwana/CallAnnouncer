@@ -122,6 +122,10 @@ object IncomingCallHandler {
             DebugLog.d(TAG, "Announcer disabled in settings; ignoring ring")
             return
         }
+        if (!settings.hasAcceptedPrivacyPolicy) {
+            DebugLog.d(TAG, "Privacy policy not accepted; ignoring ring")
+            return
+        }
 
         val incomingNumber = PhoneCallNumberResolver.resolveIncomingNumber(context, number)
         val contactName = ContactLookupHelper.lookupContactName(context, incomingNumber)

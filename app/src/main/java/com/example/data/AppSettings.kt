@@ -23,8 +23,17 @@ data class AnnouncerSettings(
     val syncRingtoneVolume: Boolean = true,
     /** BCP-47 language tag for the announcement voice; empty means the phone's language. */
     val voiceLanguage: String = "",
-    val themeMode: ThemeMode = ThemeMode.SYSTEM
-)
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    /** Version of the privacy policy the user accepted; 0 means never accepted. */
+    val acceptedPrivacyVersion: Int = 0
+) {
+    val hasAcceptedPrivacyPolicy: Boolean get() = acceptedPrivacyVersion >= PRIVACY_POLICY_VERSION
+
+    companion object {
+        /** Bump when the policy text changes materially so users are asked again. */
+        const val PRIVACY_POLICY_VERSION = 1
+    }
+}
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
@@ -70,6 +79,7 @@ class AppSettings private constructor(context: Context) {
         val voiceLanguage = prefs.getString(KEY_VOICE_LANGUAGE, "") ?: ""
         val themeMode = ThemeMode.entries.firstOrNull { it.name == prefs.getString(KEY_THEME_MODE, null) }
             ?: ThemeMode.SYSTEM
+        val acceptedPrivacyVersion = prefs.getInt(KEY_PRIVACY_VERSION, 0)
 
         return AnnouncerSettings(
             isEnabled = isEnabled,
@@ -85,7 +95,8 @@ class AppSettings private constructor(context: Context) {
             duckRingtone = duckRingtone,
             syncRingtoneVolume = syncRingtone,
             voiceLanguage = voiceLanguage,
-            themeMode = themeMode
+            themeMode = themeMode,
+            acceptedPrivacyVersion = acceptedPrivacyVersion
         )
     }
 
@@ -107,6 +118,7 @@ class AppSettings private constructor(context: Context) {
             .putBoolean(KEY_SYNC_RINGTONE, updated.syncRingtoneVolume)
             .putString(KEY_VOICE_LANGUAGE, updated.voiceLanguage)
             .putString(KEY_THEME_MODE, updated.themeMode.name)
+            .putInt(KEY_PRIVACY_VERSION, updated.acceptedPrivacyVersion)
             .apply()
 
         _settingsFlow.value = updated
@@ -130,6 +142,7 @@ class AppSettings private constructor(context: Context) {
         private const val KEY_SYNC_RINGTONE = "sync_ringtone"
         private const val KEY_VOICE_LANGUAGE = "voice_language"
         private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_PRIVACY_VERSION = "accepted_privacy_version"
 
         @Volatile
         private var INSTANCE: AppSettings? = null
