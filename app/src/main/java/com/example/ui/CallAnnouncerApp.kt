@@ -29,6 +29,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.example.ui.components.CallAnnouncerTopBar
 import com.example.ui.components.SimulatedCallBanner
 import com.example.ui.screens.DashboardScreen
@@ -55,6 +57,7 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
     val testContactName by viewModel.testContactName.collectAsState()
     val isSimulatingRinging by viewModel.isSimulatingRinging.collectAsState()
     val permissionStatus by viewModel.permissionsStatus.collectAsState()
+    val voiceLanguages by viewModel.availableVoiceLanguages.collectAsState()
 
     val livePreview = viewModel.getLivePreview()
 
@@ -65,7 +68,14 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
         viewModel.checkPermissions(context)
     }
 
-    LaunchedEffect(Unit) {
+    val roleLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        viewModel.checkPermissions(context)
+    }
+
+    // Re-check when returning from system settings (e.g. battery optimization screen)
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.checkPermissions(context)
     }
 
@@ -171,6 +181,8 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
                 ScreenTab.SETTINGS -> {
                     SettingsScreen(
                         settings = settings,
+                        availableLanguages = voiceLanguages,
+                        onVoiceLanguageChange = { viewModel.updateVoiceLanguage(it) },
                         onPrefixChange = { viewModel.updatePrefix(it) },
                         onPairModeChange = { viewModel.updatePairMode(it) },
                         onRepeatCountChange = { viewModel.updateRepeatCount(it) },
@@ -197,7 +209,10 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
                 ScreenTab.PERMISSIONS -> {
                     PermissionsScreen(
                         permissionStatus = permissionStatus,
-                        onRequestAllPermissions = { requestPermissions() }
+                        onRequestAllPermissions = { requestPermissions() },
+                        onRequestCallScreeningRole = {
+                            viewModel.createCallScreeningRoleIntent(context)?.let { roleLauncher.launch(it) }
+                        }
                     )
                 }
             }

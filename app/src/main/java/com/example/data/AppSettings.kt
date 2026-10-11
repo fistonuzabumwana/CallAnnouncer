@@ -2,6 +2,7 @@ package com.example.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.example.util.DeviceStorage
 import com.example.util.PairSpokenMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,13 +20,14 @@ data class AnnouncerSettings(
     val announceContacts: Boolean = true,
     val announceUnknowns: Boolean = true,
     val duckRingtone: Boolean = true,
-    val syncRingtoneVolume: Boolean = true
+    val syncRingtoneVolume: Boolean = true,
+    /** BCP-47 language tag for the announcement voice; empty means the phone's language. */
+    val voiceLanguage: String = ""
 )
 
 class AppSettings private constructor(context: Context) {
 
-    private val prefs: SharedPreferences =
-        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences = DeviceStorage.prefs(context, PREFS_NAME)
 
     private val _settingsFlow = MutableStateFlow(loadSettings())
     val settingsFlow: StateFlow<AnnouncerSettings> = _settingsFlow.asStateFlow()
@@ -48,6 +50,7 @@ class AppSettings private constructor(context: Context) {
         val announceUnknowns = prefs.getBoolean(KEY_ANNOUNCE_UNKNOWNS, true)
         val duckRingtone = prefs.getBoolean(KEY_DUCK_RINGTONE, true)
         val syncRingtone = prefs.getBoolean(KEY_SYNC_RINGTONE, true)
+        val voiceLanguage = prefs.getString(KEY_VOICE_LANGUAGE, "") ?: ""
 
         return AnnouncerSettings(
             isEnabled = isEnabled,
@@ -61,7 +64,8 @@ class AppSettings private constructor(context: Context) {
             announceContacts = announceContacts,
             announceUnknowns = announceUnknowns,
             duckRingtone = duckRingtone,
-            syncRingtoneVolume = syncRingtone
+            syncRingtoneVolume = syncRingtone,
+            voiceLanguage = voiceLanguage
         )
     }
 
@@ -81,6 +85,7 @@ class AppSettings private constructor(context: Context) {
             .putBoolean(KEY_ANNOUNCE_UNKNOWNS, updated.announceUnknowns)
             .putBoolean(KEY_DUCK_RINGTONE, updated.duckRingtone)
             .putBoolean(KEY_SYNC_RINGTONE, updated.syncRingtoneVolume)
+            .putString(KEY_VOICE_LANGUAGE, updated.voiceLanguage)
             .apply()
 
         _settingsFlow.value = updated
@@ -102,6 +107,7 @@ class AppSettings private constructor(context: Context) {
         private const val KEY_ANNOUNCE_UNKNOWNS = "announce_unknowns"
         private const val KEY_DUCK_RINGTONE = "duck_ringtone"
         private const val KEY_SYNC_RINGTONE = "sync_ringtone"
+        private const val KEY_VOICE_LANGUAGE = "voice_language"
 
         @Volatile
         private var INSTANCE: AppSettings? = null

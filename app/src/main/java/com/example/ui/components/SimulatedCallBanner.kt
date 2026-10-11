@@ -188,7 +188,7 @@ fun SimulatedCallBanner(
                         if (isSpeaking) {
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "🔉 Ringtone ducked • Announcer volume synchronized with call • Restores after speech finishes",
+                                text = "🔉 Ringtone lowered • Announcer louder than ringtone • Restores after speech finishes",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

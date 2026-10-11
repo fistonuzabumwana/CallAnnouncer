@@ -24,7 +24,7 @@ object ContactLookupHelper {
         ) == PackageManager.PERMISSION_GRANTED
 
         if (!hasPermission) {
-            Log.d(TAG, "READ_CONTACTS permission not granted")
+            DebugLog.d(TAG, "READ_CONTACTS permission not granted")
             return null
         }
 

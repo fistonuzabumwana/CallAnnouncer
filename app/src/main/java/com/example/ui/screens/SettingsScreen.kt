@@ -28,12 +28,16 @@ import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VolumeDown
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
@@ -41,6 +45,10 @@ import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,12 +58,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.AnnouncerSettings
 import com.example.util.PairSpokenMode
+import java.util.Locale
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     settings: AnnouncerSettings,
+    availableLanguages: List<Locale>,
+    onVoiceLanguageChange: (String) -> Unit,
     onPrefixChange: (String) -> Unit,
     onPairModeChange: (PairSpokenMode) -> Unit,
     onRepeatCountChange: (Int) -> Unit,
@@ -115,12 +126,12 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Sync Announcer with Ringtone Volume",
+                            text = "Announce Louder Than Ringtone",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "If ringtone is at 90%, announcer speaks at 90%. If at 50%, announcer speaks at 50%.",
+                            text = "Reads your ringtone volume and speaks about 30% louder (ringtone at 50% → announcer at 80%). Silent/vibrate mode is respected. Volumes are restored after the announcement or when the call ends.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -147,7 +158,7 @@ fun SettingsScreen(
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "Temporarily lowers the ringtone so the caller voice is loud & clear, then restores ringtone volume after speech finishes.",
+                            text = "Temporarily lowers the ringtone so the caller voice is loud & clear, then brings the ringtone back after speech finishes or the call is answered/missed.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -410,10 +421,69 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "Voice Pitch & Speed",
+                        text = "Voice Language, Pitch & Speed",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Text(
+                    text = "Voice Language",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = "Only languages with a voice downloaded on this phone are listed, so announcements work offline. Add more in Android Settings → Text-to-speech.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+
+                var languageMenuOpen by remember { mutableStateOf(false) }
+                val selectedLanguageName = availableLanguages
+                    .firstOrNull { it.toLanguageTag() == settings.voiceLanguage }
+                    ?.let { it.getDisplayName(it).replaceFirstChar { c -> c.uppercase() } }
+                    ?: "Phone default"
+                Box {
+                    OutlinedButton(
+                        onClick = { languageMenuOpen = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("voice_language_button"),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Language, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(selectedLanguageName, modifier = Modifier.weight(1f))
+                    }
+                    DropdownMenu(
+                        expanded = languageMenuOpen,
+                        onDismissRequest = { languageMenuOpen = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Phone default") },
+                            onClick = {
+                                onVoiceLanguageChange("")
+                                languageMenuOpen = false
+                            }
+                        )
+                        availableLanguages.forEach { locale ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        "${locale.getDisplayName(locale).replaceFirstChar { it.uppercase() }} " +
+                                            "(${locale.getDisplayName(Locale.ENGLISH)})"
+                                    )
+                                },
+                                onClick = {
+                                    onVoiceLanguageChange(locale.toLanguageTag())
+                                    languageMenuOpen = false
+                                }
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))

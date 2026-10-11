@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -48,11 +49,13 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.PermissionStatus
 import com.example.ui.theme.AccentAmber
 import com.example.ui.theme.AccentGreen
+import com.example.util.AutoStartSettings
 
 @Composable
 fun PermissionsScreen(
     permissionStatus: PermissionStatus,
-    onRequestAllPermissions: () -> Unit
+    onRequestAllPermissions: () -> Unit,
+    onRequestCallScreeningRole: () -> Unit
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
@@ -154,6 +157,27 @@ fun PermissionsScreen(
             icon = Icons.Default.Notifications
         )
 
+        // Item 5: Call screening role
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            PermissionItemCard(
+                title = "Caller ID & Spam App",
+                description = "Android wakes the announcer for every incoming call, even when the phone has frozen it in the background. Calls are never blocked.\n\nOnly one app can hold this role. If Truecaller (or another caller ID app) has it, Call Announcer takes over: Truecaller's spam blocking and caller ID pop-up may stop working, and choosing Truecaller again makes announcements unreliable while this app is closed.",
+                isGranted = permissionStatus.hasCallScreeningRole,
+                icon = Icons.Default.PhoneCallback
+            )
+            if (!permissionStatus.hasCallScreeningRole) {
+                Button(
+                    onClick = onRequestCallScreeningRole,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("request_call_screening_role_button"),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text("Set as Caller ID App", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
         // Battery Optimization Card
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -183,12 +207,56 @@ fun PermissionsScreen(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
-                    text = "Some Android devices aggressively close background apps. If calls aren't announced when your screen is locked, allow 'Unrestricted battery usage' in App Settings.",
+                    text = "To announce calls while the app is closed or removed from recents, Android must not restrict its battery usage. On TECNO, Infinix, itel, Xiaomi, Oppo, Vivo and Huawei phones also enable 'Auto-start', otherwise swiping the app away fully stops it.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
+
+                PermissionItemCard(
+                    title = "Unrestricted Battery Usage",
+                    description = "Lets the announcer start in the background when a call rings.",
+                    isGranted = permissionStatus.ignoresBatteryOptimizations,
+                    icon = Icons.Default.BatteryAlert
+                )
+
+                if (!permissionStatus.ignoresBatteryOptimizations) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Button(
+                        onClick = {
+                            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                data = Uri.fromParts("package", context.packageName, null)
+                            }
+                            try {
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
+                                context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("disable_battery_optimization_button"),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Allow Unrestricted Battery Usage", fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                if (AutoStartSettings.isAvailable(context)) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Button(
+                        onClick = { AutoStartSettings.open(context) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("open_autostart_settings_button"),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Enable ${AutoStartSettings.manufacturerName()} Auto-start", fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 OutlinedButton(
                     onClick = {

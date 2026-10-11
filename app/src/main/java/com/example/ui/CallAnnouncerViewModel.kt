@@ -1,9 +1,12 @@
 package com.example.ui
 
 import android.app.Application
+import android.app.role.RoleManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.PowerManager
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -27,7 +30,9 @@ data class PermissionStatus(
     val hasPhoneState: Boolean = false,
     val hasCallLog: Boolean = false,
     val hasContacts: Boolean = false,
-    val hasNotifications: Boolean = false
+    val hasNotifications: Boolean = false,
+    val ignoresBatteryOptimizations: Boolean = false,
+    val hasCallScreeningRole: Boolean = false
 ) {
     val allGranted: Boolean
         get() = hasPhoneState && hasCallLog && hasContacts && hasNotifications
@@ -46,6 +51,7 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
 
     val isTtsSpeaking = DirectTtsAnnouncer.isSpeaking
     val isTtsReady = DirectTtsAnnouncer.isReady
+    val availableVoiceLanguages = DirectTtsAnnouncer.availableLanguages
 
     // Simulator input state
     private val _testPhoneNumber = MutableStateFlow("078546")
@@ -96,12 +102,33 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
             true
         }
 
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+        val ignoresBatteryOptimizations =
+            powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true
+
         _permissionsStatus.value = PermissionStatus(
             hasPhoneState = hasPhoneState,
             hasCallLog = hasCallLog,
             hasContacts = hasContacts,
-            hasNotifications = hasNotifications
+            hasNotifications = hasNotifications,
+            ignoresBatteryOptimizations = ignoresBatteryOptimizations,
+            hasCallScreeningRole = hasCallScreeningRole(context)
         )
+    }
+
+    private fun hasCallScreeningRole(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
+        val roleManager = context.getSystemService(RoleManager::class.java) ?: return false
+        return roleManager.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING) &&
+            roleManager.isRoleHeld(RoleManager.ROLE_CALL_SCREENING)
+    }
+
+    /** Intent that asks the user to make this app the call screening (caller ID) app. */
+    fun createCallScreeningRoleIntent(context: Context): Intent? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        val roleManager = context.getSystemService(RoleManager::class.java) ?: return null
+        if (!roleManager.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING)) return null
+        return roleManager.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING)
     }
 
     fun setTestPhoneNumber(number: String) {
@@ -162,6 +189,10 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
         appSettings.updateSettings { it.copy(initialDelayMs = delayMs) }
     }
 
+    fun updateVoiceLanguage(languageTag: String) {
+        appSettings.updateSettings { it.copy(voiceLanguage = languageTag) }
+    }
+
     fun toggleAnnounceContacts() {
         appSettings.updateSettings { it.copy(announceContacts = !it.announceContacts) }
     }
@@ -189,6 +220,7 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
             repeatDelayMs = 1200L,
             rate = s.speechRate,
             pitch = s.speechPitch,
+            languageTag = s.voiceLanguage,
             duckRingtone = false,
             syncRingtoneVolume = s.syncRingtoneVolume
         )
@@ -205,6 +237,7 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
             repeatDelayMs = s.repeatDelayMs,
             rate = s.speechRate,
             pitch = s.speechPitch,
+            languageTag = s.voiceLanguage,
             duckRingtone = s.duckRingtone,
             syncRingtoneVolume = s.syncRingtoneVolume
         )
@@ -241,6 +274,7 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
                 repeatDelayMs = s.repeatDelayMs,
                 rate = s.speechRate,
                 pitch = s.speechPitch,
+                languageTag = s.voiceLanguage,
                 duckRingtone = s.duckRingtone,
                 syncRingtoneVolume = s.syncRingtoneVolume,
                 onFinish = {
@@ -272,7 +306,8 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
             repeatCount = 1,
             initialDelayMs = 0L,
             rate = s.speechRate,
-            pitch = s.speechPitch
+            pitch = s.speechPitch,
+            languageTag = s.voiceLanguage
         )
     }
 

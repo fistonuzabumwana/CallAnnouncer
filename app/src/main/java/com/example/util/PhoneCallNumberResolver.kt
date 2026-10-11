@@ -25,7 +25,7 @@ object PhoneCallNumberResolver {
         ) == PackageManager.PERMISSION_GRANTED
 
         if (!hasPermission) {
-            Log.d(TAG, "READ_CALL_LOG not granted; cannot query fallback CallLog")
+            DebugLog.d(TAG, "READ_CALL_LOG not granted; cannot query fallback CallLog")
             return null
         }
 
@@ -48,7 +48,7 @@ object PhoneCallNumberResolver {
                         if (System.currentTimeMillis() - callDate < 20000L) {
                             val number = it.getString(numIdx)
                             if (!number.isNullOrBlank()) {
-                                Log.d(TAG, "Resolved recent number from CallLog: $number")
+                                DebugLog.d(TAG, "Resolved recent number from CallLog: $number")
                                 return number
                             }
                         }

@@ -14,44 +14,30 @@ import android.telephony.PhoneStateListener
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import android.util.Log
+import com.example.util.DebugLog
 import androidx.core.app.NotificationCompat
 import com.example.MainActivity
 import com.example.R
-import com.example.data.AppDatabase
 import com.example.data.AppSettings
-import com.example.data.CallLogEntity
 import com.example.tts.DirectTtsAnnouncer
-import com.example.util.AnnouncementBuilder
-import com.example.util.ContactLookupHelper
-import com.example.util.PhoneCallNumberResolver
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
 
 class CallAnnouncerService : Service() {
 
     private val tag = "CallAnnouncerService"
-    private val scope = CoroutineScope(Dispatchers.IO + Job())
 
     private lateinit var appSettings: AppSettings
-    private lateinit var database: AppDatabase
     private var telephonyManager: TelephonyManager? = null
 
     private var telephonyCallback: TelephonyCallback? = null
     private var legacyListener: PhoneStateListener? = null
 
-    private var lastIncomingNumber: String? = null
-    private var isCurrentlyRinging = false
-
     override fun onCreate() {
         super.onCreate()
-        Log.d(tag, "Service onCreate")
+        DebugLog.d(tag, "Service onCreate")
         isServiceRunning = true
         instance = this
 
         appSettings = AppSettings.getInstance(this)
-        database = AppDatabase.getInstance(this)
         DirectTtsAnnouncer.initialize(this)
 
         createNotificationChannel()
@@ -122,7 +108,7 @@ class CallAnnouncerService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        Log.d(tag, "App swiped from recents; foreground service continuing")
+        DebugLog.d(tag, "App swiped from recents; foreground service continuing")
         // Keep foreground status notification active even when the app is closed
         if (appSettings.getSettings().isEnabled) {
             updateNotification("Monitoring incoming calls")
@@ -132,86 +118,19 @@ class CallAnnouncerService : Service() {
     fun handleCallState(state: Int, numberFromIntent: String?) {
         when (state) {
             TelephonyManager.CALL_STATE_RINGING -> {
-                isCurrentlyRinging = true
-                val resolvedNumber = PhoneCallNumberResolver.resolveIncomingNumber(this, numberFromIntent ?: lastIncomingNumber)
-                if (!resolvedNumber.isNullOrBlank()) {
-                    lastIncomingNumber = resolvedNumber
+                if (!appSettings.getSettings().isEnabled) {
+                    DebugLog.d(tag, "Announcer is disabled in settings; skipping")
+                    return
                 }
-                triggerAnnouncement(resolvedNumber)
+                IncomingCallHandler.onRinging(this, numberFromIntent) { callerIdentifier ->
+                    updateNotification("Announcing: $callerIdentifier")
+                }
             }
             TelephonyManager.CALL_STATE_OFFHOOK,
             TelephonyManager.CALL_STATE_IDLE -> {
-                isCurrentlyRinging = false
-                lastIncomingNumber = null
-                DirectTtsAnnouncer.stop()
+                IncomingCallHandler.onCallEnded(this)
                 updateNotification("Monitoring incoming calls")
             }
-        }
-    }
-
-    private fun triggerAnnouncement(rawNumber: String?) {
-        val settings = appSettings.getSettings()
-        if (!settings.isEnabled) {
-            Log.d(tag, "Announcer is disabled in settings; skipping")
-            return
-        }
-
-        scope.launch {
-            val contactName = ContactLookupHelper.lookupContactName(this@CallAnnouncerService, rawNumber)
-            val announcement = AnnouncementBuilder.buildAnnouncement(
-                contactName = contactName,
-                phoneNumber = rawNumber,
-                prefix = settings.prefixText,
-                pairMode = settings.pairMode
-            )
-
-            // Check contact filters
-            if (announcement.isKnownContact && !settings.announceContacts) {
-                Log.d(tag, "Known contact announcements disabled")
-                return@launch
-            }
-            if (!announcement.isKnownContact && !settings.announceUnknowns) {
-                Log.d(tag, "Unknown caller announcements disabled")
-                return@launch
-            }
-
-            // Save log entry to local database
-            try {
-                database.callLogDao().insertAnnouncement(
-                    CallLogEntity(
-                        rawPhoneNumber = rawNumber ?: "Unknown",
-                        contactName = contactName,
-                        formattedDisplay = announcement.callerIdentifier,
-                        spokenAnnouncement = announcement.spokenText,
-                        isKnownContact = announcement.isKnownContact,
-                        timesAnnounced = settings.repeatCount
-                    )
-                )
-            } catch (e: Exception) {
-                Log.e(tag, "Failed to persist call announcement", e)
-            }
-
-            updateNotification("Announcing: ${announcement.callerIdentifier}")
-
-            // Speak via DirectTtsAnnouncer
-            DirectTtsAnnouncer.speak(
-                context = this@CallAnnouncerService,
-                text = announcement.spokenText,
-                repeatCount = settings.repeatCount,
-                initialDelayMs = settings.initialDelayMs,
-                repeatDelayMs = settings.repeatDelayMs,
-                rate = settings.speechRate,
-                pitch = settings.speechPitch,
-                duckRingtone = settings.duckRingtone,
-                syncRingtoneVolume = settings.syncRingtoneVolume,
-                onFinish = {
-                    if (isCurrentlyRinging) {
-                        updateNotification("Ringing: ${announcement.callerIdentifier}")
-                    } else {
-                        updateNotification("Monitoring incoming calls")
-                    }
-                }
-            )
         }
     }
 
@@ -267,25 +186,23 @@ class CallAnnouncerService : Service() {
 
     private fun startForegroundServiceWithNotification(statusText: String) {
         val notification = buildNotification(statusText)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            try {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                // mediaPlayback may not be started from BOOT_COMPLETED on Android 15+, specialUse can
                 startForeground(
                     NOTIFICATION_ID,
                     notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
                 )
-            } catch (e: Exception) {
-                Log.e(tag, "Failed to startForeground with mediaPlayback type", e)
-                try {
-                    startForeground(NOTIFICATION_ID, notification)
-                } catch (e2: Exception) {
-                    Log.e(tag, "Failed to startForeground fallback", e2)
-                }
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
             }
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        } catch (e: Exception) {
+            Log.e(tag, "Failed to start foreground", e)
         }
     }
+
+    fun showStatus(statusText: String) = updateNotification(statusText)
 
     private fun updateNotification(statusText: String) {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
@@ -294,7 +211,7 @@ class CallAnnouncerService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.d(tag, "Service onDestroy")
+        DebugLog.d(tag, "Service onDestroy")
         isServiceRunning = false
         instance = null
 
