@@ -70,7 +70,7 @@ You need JDK 17+ and the Android SDK (API 36). Android Studio is the easiest opt
    .\gradlew.bat :app:testDebugUnitTest
    ```
 
-Release builds are signed with `my-upload-key.jks` (or `KEYSTORE_PATH`) using the `STORE_PASSWORD` and `KEY_PASSWORD` environment variables.
+Release builds are signed with `my-upload-key.jks` (or `KEYSTORE_PATH`) using the `STORE_PASSWORD` and `KEY_PASSWORD` environment variables. `assembleRelease` produces one APK per CPU architecture (`armeabi-v7a`, `arm64-v8a`, `x86_64`) plus a `universal` APK in `app/build/outputs/apk/release/`. Most modern phones use `arm64-v8a`; pick `universal` if unsure.
 
 ### Installing over Wi-Fi
 
