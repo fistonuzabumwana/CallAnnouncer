@@ -1,0 +1,6 @@
+{
+  "name": "Call Announcer",
+  "description": "Announces caller contact names or reads phone numbers in pairs of two digits during incoming calls.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

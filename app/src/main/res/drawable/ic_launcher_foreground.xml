@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Phone handset centered within 66dp safe zone (21-87) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M39.6,33.5 C38.5,33.5 37.4,34.0 36.6,34.8 L32.8,38.6 C31.7,39.7 31.1,41.2 31.3,42.8 C31.9,47.7 34.5,54.8 41.2,61.5 C47.9,68.2 55.0,70.8 59.9,71.4 C61.5,71.6 63.0,71.0 64.1,69.9 L67.9,66.1 C69.5,64.5 69.5,61.9 67.9,60.3 L62.5,54.9 C60.9,53.3 58.3,53.3 56.7,54.9 L54.7,56.9 C50.5,54.6 48.1,52.2 45.8,48.0 L47.8,46.0 C49.4,44.4 49.4,41.8 47.8,40.2 L42.4,34.8 C41.6,34.0 40.6,33.5 39.6,33.5 Z" />
+
+    <!-- Speaking sound waves in vibrant cyan #38BDF8 -->
+    <!-- Small inner wave -->
+    <path
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M 61,38 C 65.5,41.5 67.5,46.5 66.5,52" />
+
+    <!-- Outer sound wave -->
+    <path
+        android:strokeColor="#67E8F9"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M 68,31 C 75.5,36.5 78.5,45.5 76.5,55" />
+
+    <!-- Speech audio dots -->
+    <path
+        android:fillColor="#38BDF8"
+        android:pathData="M 52,29 A 2.2,2.2 0 1 1 51.9,29" />
+</vector>
