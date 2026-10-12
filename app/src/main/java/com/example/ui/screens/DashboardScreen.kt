@@ -60,6 +60,7 @@ private data class Sample(val label: String, val name: String, val number: Strin
 private val samples = listOf(
     Sample("Unknown number", "", "0785461234"),
     Sample("Saved contact", "Alice", "0788123456"),
+    Sample("Rwandan name", "Jean Claude Nshimiyimana", "0788456789"),
     Sample("MTN contact", "Yves MTN", "0788000111"),
     Sample("International", "", "+447854699011")
 )

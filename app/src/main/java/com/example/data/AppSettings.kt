@@ -28,6 +28,8 @@ data class AnnouncerSettings(
     val announceWhatsApp: Boolean = true,
     /** Announce calls from other internet calling apps (Telegram, Signal, Messenger…). */
     val announceOtherApps: Boolean = true,
+    /** Speak Rwandan names with a Swahili voice (or respelled) and French names with a French voice. */
+    val smartNamePronunciation: Boolean = true,
     /** Version of the privacy policy the user accepted; 0 means never accepted. */
     val acceptedPrivacyVersion: Int = 0
 ) {
@@ -86,6 +88,7 @@ class AppSettings private constructor(context: Context) {
         val acceptedPrivacyVersion = prefs.getInt(KEY_PRIVACY_VERSION, 0)
         val announceWhatsApp = prefs.getBoolean(KEY_ANNOUNCE_WHATSAPP, true)
         val announceOtherApps = prefs.getBoolean(KEY_ANNOUNCE_OTHER_APPS, true)
+        val smartNamePronunciation = prefs.getBoolean(KEY_SMART_NAMES, true)
 
         return AnnouncerSettings(
             isEnabled = isEnabled,
@@ -104,7 +107,8 @@ class AppSettings private constructor(context: Context) {
             themeMode = themeMode,
             acceptedPrivacyVersion = acceptedPrivacyVersion,
             announceWhatsApp = announceWhatsApp,
-            announceOtherApps = announceOtherApps
+            announceOtherApps = announceOtherApps,
+            smartNamePronunciation = smartNamePronunciation
         )
     }
 
@@ -129,6 +133,7 @@ class AppSettings private constructor(context: Context) {
             .putInt(KEY_PRIVACY_VERSION, updated.acceptedPrivacyVersion)
             .putBoolean(KEY_ANNOUNCE_WHATSAPP, updated.announceWhatsApp)
             .putBoolean(KEY_ANNOUNCE_OTHER_APPS, updated.announceOtherApps)
+            .putBoolean(KEY_SMART_NAMES, updated.smartNamePronunciation)
             .apply()
 
         _settingsFlow.value = updated
@@ -155,6 +160,7 @@ class AppSettings private constructor(context: Context) {
         private const val KEY_PRIVACY_VERSION = "accepted_privacy_version"
         private const val KEY_ANNOUNCE_WHATSAPP = "announce_whatsapp"
         private const val KEY_ANNOUNCE_OTHER_APPS = "announce_other_apps"
+        private const val KEY_SMART_NAMES = "smart_name_pronunciation"
 
         @Volatile
         private var INSTANCE: AppSettings? = null

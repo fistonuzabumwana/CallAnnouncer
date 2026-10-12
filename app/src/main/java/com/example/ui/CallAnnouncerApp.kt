@@ -185,7 +185,8 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
                         onToggleWhatsApp = { viewModel.toggleAnnounceWhatsApp() },
                         onToggleOtherApps = { viewModel.toggleAnnounceOtherApps() },
                         notificationAccessMissing = internetCallsCheck?.passed == false,
-                        onAllowNotificationAccess = { internetCallsCheck?.let { setupFixer.fix(it) } }
+                        onAllowNotificationAccess = { internetCallsCheck?.let { setupFixer.fix(it) } },
+                        onToggleSmartNames = { viewModel.toggleSmartNamePronunciation() }
                     )
 
                     ScreenTab.HISTORY -> HistoryScreen(

@@ -19,9 +19,16 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.BrightnessAuto
+import android.content.Intent
+import android.speech.tts.TextToSpeech
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalContext
 import com.example.ui.theme.AccentAmber
+import com.example.util.NamePronunciation
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.LightMode
@@ -103,11 +110,14 @@ fun SettingsScreen(
     onToggleWhatsApp: () -> Unit,
     onToggleOtherApps: () -> Unit,
     notificationAccessMissing: Boolean,
-    onAllowNotificationAccess: () -> Unit
+    onAllowNotificationAccess: () -> Unit,
+    onToggleSmartNames: () -> Unit
 ) {
     ScreenColumn {
         Section(title = "Voice") {
             LanguageRow(settings.voiceLanguage, availableLanguages, onVoiceLanguageChange)
+            GroupDivider()
+            NamePronunciationRow(settings.smartNamePronunciation, availableLanguages, onToggleSmartNames)
             GroupDivider()
             SliderRow(
                 title = "Speed",
@@ -346,6 +356,45 @@ private fun ThemeMode.icon() = when (this) {
     ThemeMode.SYSTEM -> Icons.Default.BrightnessAuto
     ThemeMode.LIGHT -> Icons.Default.LightMode
     ThemeMode.DARK -> Icons.Default.DarkMode
+}
+
+@Composable
+private fun NamePronunciationRow(
+    enabled: Boolean,
+    languages: List<Locale>,
+    onToggle: () -> Unit
+) {
+    val context = LocalContext.current
+    val hasSwahili = languages.any { it.language == NamePronunciation.SWAHILI }
+    val hasFrench = languages.any { it.language == NamePronunciation.FRENCH }
+    SwitchRow(
+        icon = Icons.Default.RecordVoiceOver,
+        title = "Rwandan & French names",
+        subtitle = when {
+            !enabled -> "Names are read by the main voice."
+            hasSwahili -> "Rwandan names use the Swahili voice" + if (hasFrench) ", French names the French voice." else "."
+            else -> "Rwandan names are respelled for the English voice. The Swahili voice sounds much closer."
+        },
+        checked = enabled,
+        onCheckedChange = { onToggle() },
+        modifier = Modifier.testTag("smart_names_switch")
+    )
+    if (enabled && !hasSwahili) {
+        TextButton(
+            onClick = {
+                try {
+                    context.startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA))
+                } catch (_: Exception) {
+                    try { context.startActivity(Intent("com.android.settings.TTS_SETTINGS")) } catch (_: Exception) {}
+                }
+            },
+            modifier = Modifier.padding(start = 60.dp, bottom = Spacing.sm)
+        ) {
+            Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("Get Swahili voice")
+        }
+    }
 }
 
 @Composable

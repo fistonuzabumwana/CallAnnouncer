@@ -230,7 +230,8 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
             pitch = s.speechPitch,
             languageTag = s.voiceLanguage,
             duckRingtone = false,
-            syncRingtoneVolume = s.syncRingtoneVolume
+            syncRingtoneVolume = s.syncRingtoneVolume,
+            name = preview.callerIdentifier.takeIf { preview.isKnownContact }
         )
     }
 
@@ -247,7 +248,8 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
             pitch = s.speechPitch,
             languageTag = s.voiceLanguage,
             duckRingtone = s.duckRingtone,
-            syncRingtoneVolume = s.syncRingtoneVolume
+            syncRingtoneVolume = s.syncRingtoneVolume,
+            name = preview.callerIdentifier.takeIf { preview.isKnownContact }
         )
     }
 
@@ -285,6 +287,7 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
                 languageTag = s.voiceLanguage,
                 duckRingtone = s.duckRingtone,
                 syncRingtoneVolume = s.syncRingtoneVolume,
+                name = preview.callerIdentifier.takeIf { preview.isKnownContact },
                 onFinish = {
                     _isSimulatingRinging.value = false
                 }
@@ -315,8 +318,13 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
             initialDelayMs = 0L,
             rate = s.speechRate,
             pitch = s.speechPitch,
-            languageTag = s.voiceLanguage
+            languageTag = s.voiceLanguage,
+            name = callLog.contactName
         )
+    }
+
+    fun toggleSmartNamePronunciation() {
+        appSettings.updateSettings { it.copy(smartNamePronunciation = !it.smartNamePronunciation) }
     }
 
     fun deleteCallLog(callLog: CallLogEntity) {

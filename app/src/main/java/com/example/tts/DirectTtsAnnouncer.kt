@@ -8,9 +8,12 @@ import android.os.SystemClock
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
+import com.example.data.AppSettings
 import com.example.util.AnnouncementVolumeController
 import com.example.util.DebugLog
 import com.example.util.DeviceStorage
+import com.example.util.NamePronunciation
+import com.example.util.SpeechSegment
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -140,6 +143,8 @@ object DirectTtsAnnouncer : TextToSpeech.OnInitListener {
         duckRingtone: Boolean = true,
         syncRingtoneVolume: Boolean = true,
         skipWhenSilenced: Boolean = false,
+        /** The caller's name inside [text], spoken with the voice that suits it (e.g. Swahili for Rwandan names). */
+        name: String? = null,
         onFinish: (() -> Unit)? = null
     ): Job {
         initialize(context)
@@ -147,7 +152,7 @@ object DirectTtsAnnouncer : TextToSpeech.OnInitListener {
 
         val job = scope.launch(start = CoroutineStart.LAZY) {
             try {
-                announce(text, repeatCount, initialDelayMs, repeatDelayMs, rate, pitch,
+                announce(text, name, repeatCount, initialDelayMs, repeatDelayMs, rate, pitch,
                     languageTag, duckRingtone, syncRingtoneVolume, skipWhenSilenced)
             } finally {
                 // A replaced announcement must not release the wake lock of the one that replaced it
@@ -167,6 +172,7 @@ object DirectTtsAnnouncer : TextToSpeech.OnInitListener {
 
     private suspend fun announce(
         text: String,
+        name: String?,
         repeatCount: Int,
         initialDelayMs: Long,
         repeatDelayMs: Long,
@@ -204,7 +210,10 @@ object DirectTtsAnnouncer : TextToSpeech.OnInitListener {
         // Playing the audio from this process (instead of the TTS engine's) keeps the app
         // "playing audio", which stops OEM freezers like TECNO's Hiber from pausing it mid-speech.
         val startedAt = SystemClock.elapsedRealtime()
-        val audioFile = obtainAudioFile(text, rate, pitch)
+        val segments = planSegments(text, name)
+        val audioFile = obtainAnnouncementAudio(segments, rate, pitch, languageTag)
+            ?: obtainAudioFile(text, rate, pitch)
+        val engineText = segments.singleOrNull()?.takeIf { it.languageTag == null }?.text ?: text
         DebugLog.d(TAG, "Audio ready in ${SystemClock.elapsedRealtime() - startedAt}ms, " +
             "file=${audioFile?.length() ?: "failed; using engine playback"}")
         val remainingDelay = initialDelayMs - (SystemClock.elapsedRealtime() - startedAt)
@@ -224,7 +233,7 @@ object DirectTtsAnnouncer : TextToSpeech.OnInitListener {
             if (audioFile != null) {
                 playFile(audioFile)
             } else {
-                speakWithEngine(text)
+                speakWithEngine(engineText)
             }
 
             if (i < loops - 1) {
@@ -234,6 +243,71 @@ object DirectTtsAnnouncer : TextToSpeech.OnInitListener {
 
         // 3. After the announcement repetitions finish, restore ringtone and announcement volumes
         volumeController?.restore()
+    }
+
+    private fun planSegments(text: String, name: String?): List<SpeechSegment> {
+        val engine = tts ?: return listOf(SpeechSegment(text))
+        val context = appContext ?: return listOf(SpeechSegment(text))
+        if (!AppSettings.getInstance(context).getSettings().smartNamePronunciation) return listOf(SpeechSegment(text))
+        val mainLanguage = try { engine.voice?.locale?.language } catch (_: Exception) { null }
+            ?: Locale.getDefault().language
+        val installed = _availableLanguages.value.map { it.language }.toSet()
+        return NamePronunciation.plan(text, name, mainLanguage, installed).also {
+            if (it.size > 1 || it.first().text != text) DebugLog.d(TAG, "Name pronunciation plan: $it")
+        }
+    }
+
+    /** Synthesizes each part with its own voice and joins them into one cached recording. */
+    private suspend fun obtainAnnouncementAudio(
+        segments: List<SpeechSegment>,
+        rate: Float,
+        pitch: Float,
+        languageTag: String
+    ): File? {
+        if (segments.size == 1 && segments[0].languageTag == null) return obtainAudioFile(segments[0].text, rate, pitch)
+        val engine = tts ?: return null
+        val context = appContext ?: return null
+        val parts = mutableListOf<File>()
+        try {
+            for (segment in segments) {
+                val language = segment.languageTag
+                if (language == null) applyLanguage(engine, languageTag)
+                else if (!useInstalledVoice(engine, language)) return null
+                parts += obtainAudioFile(segment.text, rate, pitch) ?: return null
+            }
+        } finally {
+            applyLanguage(engine, languageTag)
+        }
+
+        val cacheDir = File(DeviceStorage.context(context).cacheDir, AUDIO_CACHE_DIR)
+        val joined = File(cacheDir, sha256(parts.joinToString("|") { it.name }) + ".wav")
+        if (joined.length() > 0) {
+            joined.setLastModified(System.currentTimeMillis())
+            return joined
+        }
+        val partial = File(cacheDir, joined.nameWithoutExtension + ".tmp")
+        return try {
+            if (WavJoiner.join(parts, partial) && partial.renameTo(joined)) joined else null
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to join announcement parts", e)
+            null
+        } finally {
+            partial.delete()
+        }
+    }
+
+    private fun useInstalledVoice(engine: TextToSpeech, language: String): Boolean = try {
+        val voice = engine.voices.orEmpty()
+            .filter { voice ->
+                voice.locale.language == language &&
+                    !voice.isNetworkConnectionRequired &&
+                    TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED !in voice.features.orEmpty()
+            }
+            .maxByOrNull { it.quality }
+        voice != null && engine.setVoice(voice) == TextToSpeech.SUCCESS
+    } catch (e: Exception) {
+        Log.w(TAG, "Cannot switch to $language voice", e)
+        false
     }
 
     /** Uses the cached recording for this exact announcement, synthesizing it on first use. */

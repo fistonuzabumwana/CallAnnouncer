@@ -219,7 +219,8 @@ object IncomingCallHandler {
             languageTag = settings.voiceLanguage,
             duckRingtone = settings.duckRingtone,
             syncRingtoneVolume = settings.syncRingtoneVolume,
-            skipWhenSilenced = true
+            skipWhenSilenced = true,
+            name = contactName
         ).join()
     }
 
@@ -291,7 +292,8 @@ object IncomingCallHandler {
             languageTag = settings.voiceLanguage,
             duckRingtone = settings.duckRingtone,
             syncRingtoneVolume = settings.syncRingtoneVolume,
-            skipWhenSilenced = true
+            skipWhenSilenced = true,
+            name = contactName
         ).join()
     }
 
