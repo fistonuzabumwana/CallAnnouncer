@@ -16,7 +16,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeDown
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.BrightnessAuto
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material3.FilledTonalButton
+import com.example.ui.theme.AccentAmber
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.LightMode
@@ -94,7 +99,11 @@ fun SettingsScreen(
     onToggleSyncRingtone: () -> Unit,
     onTestSettings: () -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
-    onOpenPrivacyPolicy: () -> Unit
+    onOpenPrivacyPolicy: () -> Unit,
+    onToggleWhatsApp: () -> Unit,
+    onToggleOtherApps: () -> Unit,
+    notificationAccessMissing: Boolean,
+    onAllowNotificationAccess: () -> Unit
 ) {
     ScreenColumn {
         Section(title = "Voice") {
@@ -247,6 +256,39 @@ fun SettingsScreen(
                 checked = settings.announceUnknowns,
                 onCheckedChange = { onToggleUnknowns() }
             )
+        }
+
+        Section(title = "Calls from apps") {
+            SwitchRow(
+                icon = Icons.AutoMirrored.Filled.Chat,
+                title = "WhatsApp",
+                subtitle = "Voice and video calls, including WhatsApp Business.",
+                checked = settings.announceWhatsApp,
+                onCheckedChange = { onToggleWhatsApp() },
+                modifier = Modifier.testTag("toggle_whatsapp_switch")
+            )
+            GroupDivider()
+            SwitchRow(
+                icon = Icons.Default.Apps,
+                title = "Other calling apps",
+                subtitle = "Telegram, Signal, Messenger, Instagram, Teams, Google Meet, Viber, Skype, Zoom and more.",
+                checked = settings.announceOtherApps,
+                onCheckedChange = { onToggleOtherApps() },
+                modifier = Modifier.testTag("toggle_other_apps_switch")
+            )
+            if (notificationAccessMissing && (settings.announceWhatsApp || settings.announceOtherApps)) {
+                GroupDivider()
+                ListRow(
+                    icon = Icons.Default.NotificationsActive,
+                    iconTint = AccentAmber,
+                    title = "Notification access needed",
+                    subtitle = "App calls are found through their call notifications. Only those are read.",
+                    onClick = onAllowNotificationAccess,
+                    modifier = Modifier.testTag("allow_notification_access_row")
+                ) {
+                    FilledTonalButton(onClick = onAllowNotificationAccess) { Text("Allow") }
+                }
+            }
         }
 
         Section(title = "Appearance") {

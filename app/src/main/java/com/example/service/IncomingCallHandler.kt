@@ -17,6 +17,8 @@ import com.example.util.AnnouncementVolumeController
 import com.example.util.ContactLookupHelper
 import com.example.util.DebugLog
 import com.example.util.DeviceStorage
+import com.example.util.IncomingVoipCall
+import com.example.util.VoipCallParser
 import com.example.util.PhoneCallNumberResolver
 import com.example.util.PhoneNumberMatcher
 import com.example.util.SetupState
@@ -112,6 +114,115 @@ object IncomingCallHandler {
         AnnouncementVolumeController.getInstance(context).restore()
     }
 
+    private var voipKey: String? = null
+    private var voipSince = 0L
+    private var voipJob: Job? = null
+
+    /**
+     * An internet calling app (WhatsApp, Telegram…) shows a ringing call notification.
+     * Apps re-post that notification while it rings, so each notification is announced once.
+     */
+    @Synchronized
+    fun onVoipRinging(context: Context, notificationKey: String, call: IncomingVoipCall, allowedByDoNotDisturb: Boolean) {
+        val now = SystemClock.elapsedRealtime()
+        if (voipKey == notificationKey && now - voipSince < MAX_RING_SESSION_MS) return
+        if (isRinging && now - ringingSince < MAX_RING_SESSION_MS) {
+            DebugLog.d(TAG, "Phone call already ringing; ignoring ${call.app.label} call")
+            return
+        }
+
+        voipJob?.cancel()
+        voipKey = notificationKey
+        voipSince = now
+        AudioKeepAlive.start()
+        DebugLog.d(TAG, "${call.app.label} call ringing")
+
+        val appContext = context.applicationContext
+        val job = scope.launch {
+            try {
+                announceVoip(appContext, call, allowedByDoNotDisturb)
+            } finally {
+                stopKeepAliveIfCurrentVoip(coroutineContext.job)
+            }
+        }
+        voipJob = job
+    }
+
+    /** The ringing notification was answered, declined, missed or replaced by an ongoing-call one. */
+    @Synchronized
+    fun onVoipEnded(context: Context, notificationKey: String) {
+        if (voipKey != notificationKey) return
+        DebugLog.d(TAG, "Internet call stopped ringing")
+        voipKey = null
+        voipJob?.cancel()
+        voipJob = null
+        if (isRinging) return
+        AudioKeepAlive.stop()
+        DirectTtsAnnouncer.stop()
+        AnnouncementVolumeController.getInstance(context).restore()
+    }
+
+    @Synchronized
+    private fun stopKeepAliveIfCurrentVoip(job: Job) {
+        if (voipJob === job && !isRinging) AudioKeepAlive.stop()
+    }
+
+    private suspend fun announceVoip(context: Context, call: IncomingVoipCall, allowedByDoNotDisturb: Boolean) {
+        val settings = AppSettings.getInstance(context).getSettings()
+        if (!settings.isEnabled || !settings.hasAcceptedPrivacyPolicy) return
+        val wanted = if (call.app.isWhatsApp) settings.announceWhatsApp else settings.announceOtherApps
+        if (!wanted) {
+            DebugLog.d(TAG, "${call.app.label} announcements disabled")
+            return
+        }
+
+        // Unsaved callers often show as a number; look it up like a regular call
+        val number = call.caller?.takeIf { VoipCallParser.looksLikePhoneNumber(it) }
+        val contactName = if (number != null) ContactLookupHelper.lookupContactName(context, number) else call.caller
+        val base = AnnouncementBuilder.buildAnnouncement(
+            contactName = contactName,
+            phoneNumber = number,
+            prefix = settings.prefixText,
+            pairMode = settings.pairMode
+        )
+        val announcement = AnnouncementBuilder.withCallingApp(base, call.app.label, call.isVideo)
+        val isKnownContact = base.isKnownContact && !call.isUnsavedProfile
+
+        if (isKnownContact && !settings.announceContacts) return
+        if (!isKnownContact && !settings.announceUnknowns) return
+
+        yield()
+        val source = if (call.isVideo) "${call.app.label} video" else call.app.label
+        saveToHistory(context, number, contactName, announcement.callerIdentifier,
+            announcement.spokenText, isKnownContact, settings.repeatCount, source)
+
+        val audioManager = context.getSystemService(AudioManager::class.java)
+        if (audioManager?.mode == AudioManager.MODE_IN_CALL) {
+            DebugLog.d(TAG, "On a phone call; not speaking over it")
+            return
+        }
+        if (!allowedByDoNotDisturb) {
+            DebugLog.d(TAG, "Do Not Disturb silences this ${call.app.label} call")
+            return
+        }
+
+        yield()
+        DebugLog.d(TAG, "Announcing: ${announcement.spokenText} (audio mode ${audioManager?.mode})")
+        DirectTtsAnnouncer.speak(
+            context = context,
+            text = announcement.spokenText,
+            repeatCount = settings.repeatCount,
+            initialDelayMs = settings.initialDelayMs,
+            repeatDelayMs = settings.repeatDelayMs,
+            rate = settings.speechRate,
+            pitch = settings.speechPitch,
+            languageTag = settings.voiceLanguage,
+            duckRingtone = settings.duckRingtone,
+            syncRingtoneVolume = settings.syncRingtoneVolume,
+            skipWhenSilenced = true
+        ).join()
+    }
+
     private suspend fun announce(
         context: Context,
         number: String?,
@@ -191,7 +302,8 @@ object IncomingCallHandler {
         callerIdentifier: String,
         spokenText: String,
         isKnownContact: Boolean,
-        repeatCount: Int
+        repeatCount: Int,
+        source: String? = null
     ) {
         // The history database lives in storage that is unreadable until the first unlock after boot
         if (!DeviceStorage.isUserUnlocked(context)) return
@@ -203,7 +315,8 @@ object IncomingCallHandler {
                     formattedDisplay = callerIdentifier,
                     spokenAnnouncement = spokenText,
                     isKnownContact = isKnownContact,
-                    timesAnnounced = repeatCount
+                    timesAnnounced = repeatCount,
+                    source = source
                 )
             )
         } catch (e: Exception) {

@@ -199,6 +199,16 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
         appSettings.updateSettings { it.copy(announceUnknowns = !it.announceUnknowns) }
     }
 
+    fun toggleAnnounceWhatsApp() {
+        appSettings.updateSettings { it.copy(announceWhatsApp = !it.announceWhatsApp) }
+        refreshReadiness()
+    }
+
+    fun toggleAnnounceOtherApps() {
+        appSettings.updateSettings { it.copy(announceOtherApps = !it.announceOtherApps) }
+        refreshReadiness()
+    }
+
     fun toggleDuckRingtone() {
         appSettings.updateSettings { it.copy(duckRingtone = !it.duckRingtone) }
     }

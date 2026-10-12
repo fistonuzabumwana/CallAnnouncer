@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PhonelinkLock
 import androidx.compose.material.icons.filled.RecordVoiceOver
@@ -67,6 +68,12 @@ private val permissionsUsed = listOf(
         "Used only to look up the caller's name on your phone. Your contact list is never copied or uploaded."
     ),
     PolicyPoint(
+        Icons.Default.NotificationsActive,
+        "Notification access (optional)",
+        "Used only to spot incoming-call notifications from WhatsApp, Telegram, Signal and similar calling apps, " +
+            "and read the caller's name shown in them. Messages and all other notifications are ignored and never stored."
+    ),
+    PolicyPoint(
         Icons.Default.Notifications,
         "Notifications",
         "Shows that the announcer is running and lets you pause it."
@@ -82,7 +89,7 @@ private val storedData = listOf(
     PolicyPoint(
         Icons.Default.History,
         "Announcement history",
-        "Date, number, contact name and what was spoken, for each announced call. Kept only on this phone."
+        "Date, number or name, the calling app (for app calls) and what was spoken, for each announced call. Kept only on this phone."
     ),
     PolicyPoint(
         Icons.Default.Settings,

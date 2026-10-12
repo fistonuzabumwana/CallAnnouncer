@@ -13,5 +13,7 @@ data class CallLogEntity(
     val formattedDisplay: String,
     val spokenAnnouncement: String,
     val isKnownContact: Boolean,
-    val timesAnnounced: Int = 1
+    val timesAnnounced: Int = 1,
+    /** Calling app for internet calls (e.g. "WhatsApp"); null for regular phone calls. */
+    val source: String? = null
 )

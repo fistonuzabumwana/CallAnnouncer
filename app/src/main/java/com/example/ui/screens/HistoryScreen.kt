@@ -174,7 +174,13 @@ private fun CallLogRow(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    if (log.contactName != null) {
+                    if (log.source != null) {
+                        Text(
+                            text = if (log.rawPhoneNumber == "Unknown") "${log.source} call" else "${log.source} call · ${log.rawPhoneNumber}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } else if (log.contactName != null) {
                         Text(
                             text = log.rawPhoneNumber,
                             style = MaterialTheme.typography.bodySmall,

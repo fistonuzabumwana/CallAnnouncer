@@ -24,6 +24,10 @@ data class AnnouncerSettings(
     /** BCP-47 language tag for the announcement voice; empty means the phone's language. */
     val voiceLanguage: String = "",
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    /** Announce WhatsApp and WhatsApp Business calls (read from their call notifications). */
+    val announceWhatsApp: Boolean = true,
+    /** Announce calls from other internet calling apps (Telegram, Signal, Messenger…). */
+    val announceOtherApps: Boolean = true,
     /** Version of the privacy policy the user accepted; 0 means never accepted. */
     val acceptedPrivacyVersion: Int = 0
 ) {
@@ -31,7 +35,7 @@ data class AnnouncerSettings(
 
     companion object {
         /** Bump when the policy text changes materially so users are asked again. */
-        const val PRIVACY_POLICY_VERSION = 1
+        const val PRIVACY_POLICY_VERSION = 2
     }
 }
 
@@ -80,6 +84,8 @@ class AppSettings private constructor(context: Context) {
         val themeMode = ThemeMode.entries.firstOrNull { it.name == prefs.getString(KEY_THEME_MODE, null) }
             ?: ThemeMode.SYSTEM
         val acceptedPrivacyVersion = prefs.getInt(KEY_PRIVACY_VERSION, 0)
+        val announceWhatsApp = prefs.getBoolean(KEY_ANNOUNCE_WHATSAPP, true)
+        val announceOtherApps = prefs.getBoolean(KEY_ANNOUNCE_OTHER_APPS, true)
 
         return AnnouncerSettings(
             isEnabled = isEnabled,
@@ -96,7 +102,9 @@ class AppSettings private constructor(context: Context) {
             syncRingtoneVolume = syncRingtone,
             voiceLanguage = voiceLanguage,
             themeMode = themeMode,
-            acceptedPrivacyVersion = acceptedPrivacyVersion
+            acceptedPrivacyVersion = acceptedPrivacyVersion,
+            announceWhatsApp = announceWhatsApp,
+            announceOtherApps = announceOtherApps
         )
     }
 
@@ -119,6 +127,8 @@ class AppSettings private constructor(context: Context) {
             .putString(KEY_VOICE_LANGUAGE, updated.voiceLanguage)
             .putString(KEY_THEME_MODE, updated.themeMode.name)
             .putInt(KEY_PRIVACY_VERSION, updated.acceptedPrivacyVersion)
+            .putBoolean(KEY_ANNOUNCE_WHATSAPP, updated.announceWhatsApp)
+            .putBoolean(KEY_ANNOUNCE_OTHER_APPS, updated.announceOtherApps)
             .apply()
 
         _settingsFlow.value = updated
@@ -143,6 +153,8 @@ class AppSettings private constructor(context: Context) {
         private const val KEY_VOICE_LANGUAGE = "voice_language"
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_PRIVACY_VERSION = "accepted_privacy_version"
+        private const val KEY_ANNOUNCE_WHATSAPP = "announce_whatsapp"
+        private const val KEY_ANNOUNCE_OTHER_APPS = "announce_other_apps"
 
         @Volatile
         private var INSTANCE: AppSettings? = null

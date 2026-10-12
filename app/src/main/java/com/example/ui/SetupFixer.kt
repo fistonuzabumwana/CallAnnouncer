@@ -25,6 +25,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.IntentCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import com.example.service.VoipCallListenerService
 import com.example.util.AutoStartSettings
 import com.example.util.ReadinessCheck
 import com.example.util.SetupItem
@@ -104,6 +105,7 @@ class SetupFixer internal constructor(
         SetupItem.UNUSED_APP_PAUSE ->
             launch { IntentCompat.createManageUnusedAppRestrictionsIntent(context, context.packageName) }
                 || openAppDetails()
+        SetupItem.INTERNET_CALLS -> openNotificationAccess()
         SetupItem.POWER_SAVER -> open(Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS))
         SetupItem.RINGER_ON, SetupItem.REAL_CALL_TEST -> false
     }
@@ -125,6 +127,17 @@ class SetupFixer internal constructor(
         return SetupState.werePermissionsRequested(context) &&
             ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED &&
             !ActivityCompat.shouldShowRequestPermissionRationale(activity, permission)
+    }
+
+    private fun openNotificationAccess(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val detail = Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS).putExtra(
+                Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME,
+                VoipCallListenerService.componentName(context).flattenToString()
+            )
+            if (open(detail)) return true
+        }
+        return open(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) || openAppDetails()
     }
 
     private fun openAppDetails(): Boolean = open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri()))

@@ -83,6 +83,12 @@ $env:ANDROID_SERIAL = "<phone-ip>:<port>"
 
 If installation fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, an older copy signed with a different key is installed; uninstall it first (this deletes its settings and history).
 
+## WhatsApp and other app calls
+
+Internet calls (WhatsApp, WhatsApp Business, Telegram, Signal, Messenger, Instagram, Teams, Google Meet, Viber, Skype, LINE, Discord, Zoom, imo, BOTIM) never reach Android's phone APIs. With **Notification access** granted (Setup → "WhatsApp and app calls"), `VoipCallListenerService` watches only those apps' incoming-call notifications and announces e.g. *"Incoming call from Jean, on WhatsApp"* or *"…, WhatsApp video call"*. Announcing stops when the call notification is answered, declined or removed. Each group can be turned off in **Settings → Calls from apps**.
+
+Limits: the caller is whatever name the app shows (a number only when the app shows one); lowering the ringtone depends on the calling app using the ringer volume; nothing is announced if that app's notifications are off. On Android 13+, sideloaded APKs may need **App info → ⋮ → Allow restricted settings** before notification access can be switched on.
+
 ## How it works
 
 ```

@@ -94,6 +94,16 @@ class ReadinessCheckerTest {
     }
 
     @Test
+    fun appCallsNeedNotificationAccessOnlyWhenWanted() {
+        val wanted = ReadinessChecker.evaluate(fullySetUp.copy(internetCallsWanted = true, hasNotificationAccess = false))
+        assertTrue(wanted.isReady)
+        assertEquals(listOf(SetupItem.INTERNET_CALLS), wanted.fixable.map { it.item })
+
+        val notWanted = ReadinessChecker.evaluate(fullySetUp.copy(internetCallsWanted = false))
+        assertFalse(notWanted.checks.any { it.item == SetupItem.INTERNET_CALLS })
+    }
+
+    @Test
     fun fixListPutsRequiredItemsFirstAndSkipsUnfixable() {
         val facts = fullySetUp.copy(
             notificationsEnabled = false,

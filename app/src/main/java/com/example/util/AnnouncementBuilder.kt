@@ -97,6 +97,19 @@ object AnnouncementBuilder {
             )
         }
 
+        return unknownCaller(cleanPrefix, spokenPrefix)
+    }
+
+    /** Adds the calling app, e.g. "Incoming call from Jean, on WhatsApp". */
+    fun withCallingApp(result: AnnouncementResult, appLabel: String, isVideo: Boolean): AnnouncementResult {
+        val suffix = if (isVideo) ", $appLabel video call" else ", on $appLabel"
+        return result.copy(
+            displayText = result.displayText + suffix,
+            spokenText = result.spokenText + sanitizeMtnForSpeech(suffix)
+        )
+    }
+
+    private fun unknownCaller(cleanPrefix: String, spokenPrefix: String): AnnouncementResult {
         // Unknown / private number with no caller ID
         val unknownText = "unknown caller"
         return AnnouncementResult(

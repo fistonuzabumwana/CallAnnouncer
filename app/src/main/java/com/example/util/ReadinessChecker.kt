@@ -11,6 +11,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.example.data.AppSettings
 import com.example.service.CallAnnouncerService
+import com.example.service.VoipCallListenerService
 import com.example.tts.DirectTtsAnnouncer
 
 enum class SetupItem {
@@ -23,6 +24,7 @@ enum class SetupItem {
     VOICE,
     ANNOUNCER_RUNNING,
     NOTIFICATIONS,
+    INTERNET_CALLS,
     UNUSED_APP_PAUSE,
     POWER_SAVER,
     RINGER_ON,
@@ -77,7 +79,10 @@ data class DeviceFacts(
     val exemptFromUnusedAppPause: Boolean,
     val isPowerSaveMode: Boolean,
     val isRingerSilenced: Boolean,
-    val lastBackgroundAnnouncementAt: Long
+    val lastBackgroundAnnouncementAt: Long,
+    /** WhatsApp or other internet-call announcements are switched on. */
+    val internetCallsWanted: Boolean = false,
+    val hasNotificationAccess: Boolean = false
 )
 
 object ReadinessChecker {
@@ -120,7 +125,9 @@ object ReadinessChecker {
                 app.packageManager.isAutoRevokeWhitelisted,
             isPowerSaveMode = powerManager?.isPowerSaveMode == true,
             isRingerSilenced = AnnouncementVolumeController.getInstance(app).isRingerSilenced(),
-            lastBackgroundAnnouncementAt = SetupState.lastBackgroundAnnouncementAt(app)
+            lastBackgroundAnnouncementAt = SetupState.lastBackgroundAnnouncementAt(app),
+            internetCallsWanted = AppSettings.getInstance(app).getSettings().let { it.announceWhatsApp || it.announceOtherApps },
+            hasNotificationAccess = VoipCallListenerService.isAccessGranted(app)
         )
     }
 
@@ -231,6 +238,26 @@ object ReadinessChecker {
                     fixLabel = "Allow"
                 )
             )
+            if (f.internetCallsWanted) {
+                add(
+                    ReadinessCheck(
+                        item = SetupItem.INTERNET_CALLS,
+                        title = "WhatsApp and app calls",
+                        description = if (f.hasNotificationAccess) {
+                            "Calls from WhatsApp, Telegram, Signal and similar apps are announced too."
+                        } else {
+                            "Allow notification access so calls from WhatsApp, Telegram, Signal and similar apps are announced. " +
+                                "Only their incoming-call notifications are read." +
+                                if (f.sdkInt >= Build.VERSION_CODES.TIRAMISU) {
+                                    " If Android says \"Restricted setting\", open App info → ⋮ → Allow restricted settings, then try again."
+                                } else ""
+                        },
+                        importance = Importance.RECOMMENDED,
+                        passed = f.hasNotificationAccess,
+                        fixLabel = "Allow"
+                    )
+                )
+            }
             if (f.sdkInt >= Build.VERSION_CODES.R) {
                 add(
                     ReadinessCheck(

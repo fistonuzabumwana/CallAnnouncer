@@ -40,6 +40,7 @@ import com.example.ui.screens.HistoryScreen
 import com.example.ui.screens.PrivacyPolicyScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.SetupScreen
+import com.example.util.SetupItem
 
 enum class ScreenTab(
     val label: String,
@@ -89,6 +90,7 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
 
     val livePreview = viewModel.getLivePreview()
     val setupFixer = rememberSetupFixer(viewModel)
+    val internetCallsCheck = readiness.checks.firstOrNull { it.item == SetupItem.INTERNET_CALLS }
 
     BackHandler(enabled = isSimulatingRinging) {
         viewModel.stopTts()
@@ -179,7 +181,11 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
                         onToggleSyncRingtone = { viewModel.toggleSyncRingtoneVolume() },
                         onTestSettings = { viewModel.testSpeakWithSettings() },
                         onThemeModeChange = { viewModel.updateThemeMode(it) },
-                        onOpenPrivacyPolicy = { showPrivacyPolicy = true }
+                        onOpenPrivacyPolicy = { showPrivacyPolicy = true },
+                        onToggleWhatsApp = { viewModel.toggleAnnounceWhatsApp() },
+                        onToggleOtherApps = { viewModel.toggleAnnounceOtherApps() },
+                        notificationAccessMissing = internetCallsCheck?.passed == false,
+                        onAllowNotificationAccess = { internetCallsCheck?.let { setupFixer.fix(it) } }
                     )
 
                     ScreenTab.HISTORY -> HistoryScreen(
