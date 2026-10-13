@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.i18n.tr
+
 import android.app.TimePickerDialog
 import android.text.format.DateFormat
 import androidx.compose.foundation.layout.Box
@@ -24,6 +26,7 @@ import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material3.DropdownMenu
@@ -46,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import com.example.data.AnnouncerSettings
 import com.example.data.HeadphoneMode
+import com.example.i18n.AppLanguage
 import com.example.ui.components.GroupDivider
 import com.example.ui.components.ListRow
 import com.example.ui.components.Section
@@ -71,16 +75,44 @@ class MoreSettingsActions(
     val contactRuleCount: Int,
     val onOpenContactRules: () -> Unit,
     val onExportBackup: () -> Unit,
-    val onImportBackup: () -> Unit
+    val onImportBackup: () -> Unit,
+    val onAppLanguageChange: (AppLanguage) -> Unit
 )
+
+@Composable
+fun AppLanguageRow(selected: AppLanguage, onSelect: (AppLanguage) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        ListRow(
+            icon = Icons.Default.Translate,
+            title = tr("App language"),
+            subtitle = tr(selected.label),
+            onClick = { open = true },
+            modifier = Modifier.testTag("app_language_row")
+        ) {
+            Icon(Icons.Default.UnfoldMore, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            AppLanguage.entries.forEach { language ->
+                DropdownMenuItem(
+                    text = { Text(tr(language.label)) },
+                    onClick = {
+                        onSelect(language)
+                        open = false
+                    }
+                )
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AnnouncementLanguageRow(selected: AnnouncementLanguage, onSelect: (AnnouncementLanguage) -> Unit) {
     Column(modifier = Modifier.padding(start = Spacing.lg, end = Spacing.lg, top = Spacing.lg)) {
-        Text("Language of the words", style = MaterialTheme.typography.titleSmall)
+        Text(tr("Language of the words"), style = MaterialTheme.typography.titleSmall)
         Text(
-            "\u201CIncoming call from\u201D, \u201Con WhatsApp\u201D, \u201Cunknown caller\u201D\u2026",
+            tr("\u201CIncoming call from\u201D, \u201Con WhatsApp\u201D, \u201Cunknown caller\u201D\u2026"),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -104,8 +136,8 @@ fun AnnouncementLanguageRow(selected: AnnouncementLanguage, onSelect: (Announcem
 fun CallerDetailsRows(settings: AnnouncerSettings, actions: MoreSettingsActions) {
     SwitchRow(
         icon = Icons.Default.CellTower,
-        title = "Say the network",
-        subtitle = "\u201CAn MTN number\u201D or \u201Can Airtel number\u201D before unsaved Rwandan numbers.",
+        title = tr("Say the network"),
+        subtitle = tr("\u201CAn MTN number\u201D or \u201Can Airtel number\u201D before unsaved Rwandan numbers."),
         checked = settings.sayNetwork,
         onCheckedChange = { actions.onToggleSayNetwork() },
         modifier = Modifier.testTag("say_network_switch")
@@ -113,8 +145,8 @@ fun CallerDetailsRows(settings: AnnouncerSettings, actions: MoreSettingsActions)
     GroupDivider()
     SwitchRow(
         icon = Icons.Default.ReportProblem,
-        title = "Warn about spam",
-        subtitle = "Says \u201CPossible spam\u201D first for numbers you marked as spam in History or that your phone blocked before.",
+        title = tr("Warn about spam"),
+        subtitle = tr("Says \u201CPossible spam\u201D first for numbers you marked as spam in History or that your phone blocked before."),
         checked = settings.spamWarning,
         onCheckedChange = { actions.onToggleSpamWarning() },
         modifier = Modifier.testTag("spam_warning_switch")
@@ -125,9 +157,12 @@ fun CallerDetailsRows(settings: AnnouncerSettings, actions: MoreSettingsActions)
 fun ContactRulesRow(actions: MoreSettingsActions) {
     ListRow(
         icon = Icons.Default.RecordVoiceOver,
-        title = "Contacts & pronunciation",
-        subtitle = if (actions.contactRuleCount == 0) "Fix a name that sounds wrong, always or never announce someone"
-        else "${actions.contactRuleCount} contacts with their own settings",
+        title = tr("Contacts & pronunciation"),
+        subtitle = when (actions.contactRuleCount) {
+            0 -> tr("Fix a name that sounds wrong, always or never announce someone")
+            1 -> tr("1 contact with its own settings")
+            else -> tr("%d contacts with their own settings", actions.contactRuleCount)
+        },
         onClick = actions.onOpenContactRules,
         modifier = Modifier.testTag("contact_rules_row")
     ) {
@@ -152,14 +187,17 @@ fun QuietSection(settings: AnnouncerSettings, actions: MoreSettingsActions) {
         ).show()
     }
 
-    Section(title = "Quiet times") {
+    Section(title = tr("Quiet times")) {
         SwitchRow(
             icon = Icons.Default.Bedtime,
-            title = "Quiet hours",
+            title = tr("Quiet hours"),
             subtitle = if (settings.quietHoursEnabled) {
-                "Silent from ${QuietHours.format(settings.quietStartMinutes)} to ${QuietHours.format(settings.quietEndMinutes)}. " +
-                    "Contacts set to \u201CAlways\u201D are still announced."
-            } else "Stay silent at night; the phone still rings.",
+                tr(
+                    "Silent from %s to %s. Contacts set to \u201CAlways\u201D are still announced.",
+                    QuietHours.format(settings.quietStartMinutes),
+                    QuietHours.format(settings.quietEndMinutes)
+                )
+            } else tr("Stay silent at night; the phone still rings."),
             checked = settings.quietHoursEnabled,
             onCheckedChange = {
                 actions.onQuietHoursChange(it, settings.quietStartMinutes, settings.quietEndMinutes)
@@ -170,7 +208,7 @@ fun QuietSection(settings: AnnouncerSettings, actions: MoreSettingsActions) {
             GroupDivider()
             ListRow(
                 icon = Icons.Default.Schedule,
-                title = "From",
+                title = tr("From"),
                 subtitle = QuietHours.format(settings.quietStartMinutes),
                 onClick = {
                     pickTime(settings.quietStartMinutes) {
@@ -181,7 +219,7 @@ fun QuietSection(settings: AnnouncerSettings, actions: MoreSettingsActions) {
             GroupDivider()
             ListRow(
                 icon = Icons.Default.Schedule,
-                title = "Until",
+                title = tr("Until"),
                 subtitle = QuietHours.format(settings.quietEndMinutes),
                 onClick = {
                     pickTime(settings.quietEndMinutes) {
@@ -201,8 +239,8 @@ private fun HeadphoneModeRow(selected: HeadphoneMode, onSelect: (HeadphoneMode) 
     Box {
         ListRow(
             icon = Icons.Default.Headphones,
-            title = "With headphones or in the car",
-            subtitle = selected.label,
+            title = tr("With headphones or in the car"),
+            subtitle = tr(selected.label),
             onClick = { open = true },
             modifier = Modifier.testTag("headphone_mode_row")
         ) {
@@ -213,7 +251,7 @@ private fun HeadphoneModeRow(selected: HeadphoneMode, onSelect: (HeadphoneMode) 
                 DropdownMenuItem(
                     text = {
                         Column {
-                            Text(mode.label)
+                            Text(tr(mode.label))
                             Text(
                                 mode.explanation(),
                                 style = MaterialTheme.typography.bodySmall,
@@ -232,18 +270,18 @@ private fun HeadphoneModeRow(selected: HeadphoneMode, onSelect: (HeadphoneMode) 
 }
 
 private fun HeadphoneMode.explanation() = when (this) {
-    HeadphoneMode.SPEAKER_AND_HEADPHONES -> "Same as without headphones"
-    HeadphoneMode.HEADPHONES_ONLY -> "Private, at a comfortable volume"
-    HeadphoneMode.SILENT -> "Only the ringtone"
+    HeadphoneMode.SPEAKER_AND_HEADPHONES -> tr("Same as without headphones")
+    HeadphoneMode.HEADPHONES_ONLY -> tr("Private, at a comfortable volume")
+    HeadphoneMode.SILENT -> tr("Only the ringtone")
 }
 
 @Composable
 fun StopSection(settings: AnnouncerSettings, actions: MoreSettingsActions) {
-    Section(title = "Stop speaking") {
+    Section(title = tr("Stop speaking")) {
         SwitchRow(
             icon = Icons.AutoMirrored.Filled.VolumeOff,
-            title = "Volume or power button",
-            subtitle = "Silencing the ringtone also stops the announcement.",
+            title = tr("Volume or power button"),
+            subtitle = tr("Silencing the ringtone also stops the announcement."),
             checked = settings.stopWhenSilenced,
             onCheckedChange = { actions.onToggleStopWhenSilenced() },
             modifier = Modifier.testTag("stop_when_silenced_switch")
@@ -251,7 +289,7 @@ fun StopSection(settings: AnnouncerSettings, actions: MoreSettingsActions) {
         GroupDivider()
         SwitchRow(
             icon = Icons.Default.ScreenRotation,
-            title = "Turn the phone face down",
+            title = tr("Turn the phone face down"),
             checked = settings.flipToStop,
             onCheckedChange = { actions.onToggleFlipToStop() },
             modifier = Modifier.testTag("flip_to_stop_switch")
@@ -259,7 +297,7 @@ fun StopSection(settings: AnnouncerSettings, actions: MoreSettingsActions) {
         GroupDivider()
         SwitchRow(
             icon = Icons.Default.Vibration,
-            title = "Shake the phone",
+            title = tr("Shake the phone"),
             checked = settings.shakeToStop,
             onCheckedChange = { actions.onToggleShakeToStop() },
             modifier = Modifier.testTag("shake_to_stop_switch")
@@ -274,11 +312,11 @@ fun MessagesSection(
     notificationAccessMissing: Boolean,
     onAllowNotificationAccess: () -> Unit
 ) {
-    Section(title = "Messages & missed calls") {
+    Section(title = tr("Messages & missed calls")) {
         SwitchRow(
             icon = Icons.AutoMirrored.Filled.Message,
-            title = "Announce messages",
-            subtitle = "\u201CMessage from Jean, on WhatsApp\u201D for WhatsApp, SMS, Telegram, Signal and more.",
+            title = tr("Announce messages"),
+            subtitle = tr("\u201CMessage from Jean, on WhatsApp\u201D for WhatsApp, SMS, Telegram, Signal and more."),
             checked = settings.announceMessages,
             onCheckedChange = { actions.onToggleMessages() },
             modifier = Modifier.testTag("announce_messages_switch")
@@ -287,8 +325,8 @@ fun MessagesSection(
             GroupDivider()
             SwitchRow(
                 icon = Icons.AutoMirrored.Filled.ShortText,
-                title = "Read the message too",
-                subtitle = "Anyone near the phone will hear it.",
+                title = tr("Read the message too"),
+                subtitle = tr("Anyone near the phone will hear it."),
                 checked = settings.readMessageText,
                 onCheckedChange = { actions.onToggleReadMessageText() },
                 modifier = Modifier.testTag("read_message_text_switch")
@@ -298,19 +336,19 @@ fun MessagesSection(
                 ListRow(
                     icon = Icons.Default.NotificationsActive,
                     iconTint = AccentAmber,
-                    title = "Notification access needed",
-                    subtitle = "Messages are found through their notifications.",
+                    title = tr("Notification access needed"),
+                    subtitle = tr("Messages are found through their notifications."),
                     onClick = onAllowNotificationAccess
                 ) {
-                    FilledTonalButton(onClick = onAllowNotificationAccess) { Text("Allow") }
+                    FilledTonalButton(onClick = onAllowNotificationAccess) { Text(tr("Allow")) }
                 }
             }
         }
         GroupDivider()
         SwitchRow(
             icon = Icons.Default.PhoneMissed,
-            title = "Missed call summary",
-            subtitle = "When you unlock the phone: \u201CYou missed calls from Jean and Paul\u201D.",
+            title = tr("Missed call summary"),
+            subtitle = tr("When you unlock the phone: \u201CYou missed calls from Jean and Paul\u201D."),
             checked = settings.missedCallSummary,
             onCheckedChange = { actions.onToggleMissedSummary() },
             modifier = Modifier.testTag("missed_summary_switch")
@@ -320,18 +358,18 @@ fun MessagesSection(
 
 @Composable
 fun BackupSection(actions: MoreSettingsActions) {
-    Section(title = "Backup") {
+    Section(title = tr("Backup")) {
         ListRow(
             icon = Icons.Default.FileUpload,
-            title = "Save settings to a file",
-            subtitle = "Settings, contact pronunciations and spam numbers. Keep it for a new phone.",
+            title = tr("Save settings to a file"),
+            subtitle = tr("Settings, contact pronunciations and spam numbers. Keep it for a new phone."),
             onClick = actions.onExportBackup,
             modifier = Modifier.testTag("export_backup_row")
         )
         GroupDivider()
         ListRow(
             icon = Icons.Default.FileDownload,
-            title = "Restore from a file",
+            title = tr("Restore from a file"),
             onClick = actions.onImportBackup,
             modifier = Modifier.testTag("import_backup_row")
         )

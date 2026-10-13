@@ -1,5 +1,7 @@
 package com.example.ui.components
 
+import com.example.i18n.tr
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -43,7 +45,7 @@ fun CallAnnouncerTopBar(
                         .testTag("stop_speaking_button")
                 ) {
                     Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Text(" Stop")
+                    Text(" " + tr("Stop"))
                 }
             }
             // "Active" is only shown once the setup checklist confirms calls will really be announced
@@ -53,7 +55,7 @@ fun CallAnnouncerTopBar(
                 else -> "Active" to AccentGreen
             }
             StatusPill(
-                text = statusText,
+                text = tr(statusText),
                 color = statusColor,
                 modifier = Modifier
                     .padding(end = 16.dp)

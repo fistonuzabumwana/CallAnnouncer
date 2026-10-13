@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.i18n.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -56,63 +58,67 @@ import com.example.ui.theme.AccentGreen
 
 private data class PolicyPoint(val icon: ImageVector, val title: String, val body: String)
 
-private val permissionsUsed = listOf(
+private fun permissionsUsed() = listOf(
     PolicyPoint(
         Icons.Default.Phone,
-        "Phone state and call log",
-        "Used only to notice an incoming call and read the caller's number so it can be spoken."
+        tr("Phone state and call log"),
+        tr("Used only to notice an incoming call, read the caller's number so it can be spoken, " +
+            "check whether your phone blocked that number before, and list missed calls if you turn on the summary.")
     ),
     PolicyPoint(
         Icons.Default.Contacts,
-        "Contacts",
-        "Used only to look up the caller's name on your phone. Your contact list is never copied or uploaded."
+        tr("Contacts"),
+        tr("Used only to look up the caller's name (and phonetic name, if saved) on your phone. " +
+            "Your contact list is never copied or uploaded.")
     ),
     PolicyPoint(
         Icons.Default.NotificationsActive,
-        "Notification access (optional)",
-        "Used only to spot incoming-call notifications from WhatsApp, Telegram, Signal and similar calling apps, " +
-            "and read the caller's name shown in them. Messages and all other notifications are ignored and never stored."
+        tr("Notification access (optional)"),
+        tr("Used to spot incoming-call notifications from WhatsApp, Telegram, Signal and similar apps. " +
+            "Only if you turn on message announcements, new-message notifications of chat apps are read aloud. " +
+            "Nothing from notifications is stored.")
     ),
     PolicyPoint(
         Icons.Default.Notifications,
-        "Notifications",
-        "Shows that the announcer is running and lets you pause it."
+        tr("Notifications"),
+        tr("Shows that the announcer is running and lets you pause it.")
     ),
     PolicyPoint(
         Icons.Default.RecordVoiceOver,
-        "Text-to-speech",
-        "Announcements are spoken by your phone's speech engine. Spoken audio is cached on the phone to start faster next time."
+        tr("Text-to-speech"),
+        tr("Announcements are spoken by your phone's speech engine. Spoken audio is cached on the phone to start faster next time.")
     )
 )
 
-private val storedData = listOf(
+private fun storedData() = listOf(
     PolicyPoint(
         Icons.Default.History,
-        "Announcement history",
-        "Date, number or name, the calling app (for app calls) and what was spoken, for each announced call. Kept only on this phone."
+        tr("Announcement history"),
+        tr("Date, number or name, the calling app (for app calls) and what was spoken, for each announced call. Kept only on this phone.")
     ),
     PolicyPoint(
         Icons.Default.Settings,
-        "Your settings",
-        "Voice, wording, volume and theme preferences."
+        tr("Your settings"),
+        tr("Voice, wording, volume and theme preferences, how you want some contacts announced, and numbers you marked as spam.")
     )
 )
 
-private val yourChoices = listOf(
+private fun yourChoices() = listOf(
     PolicyPoint(
         Icons.Default.CloudOff,
-        "Nothing leaves your phone",
-        "The app has no internet access. No analytics, no ads, no accounts, and no data is sold or shared."
+        tr("Nothing leaves your phone"),
+        tr("The app has no internet access. No analytics, no ads, no accounts, and no data is sold or shared.")
     ),
     PolicyPoint(
         Icons.Default.Backup,
-        "Android backup",
-        "If you turned on Android's own backup, it may include this app's settings and history, like any other app."
+        tr("Backups"),
+        tr("A backup file is only created when you save one, in the place you choose. " +
+            "If you turned on Android's own backup, it may include this app's settings and history, like any other app.")
     ),
     PolicyPoint(
         Icons.Default.DeleteOutline,
-        "Delete anytime",
-        "Clear the history in the app, revoke permissions in Android settings, or uninstall to remove everything."
+        tr("Delete anytime"),
+        tr("Clear the history in the app, revoke permissions in Android settings, or uninstall to remove everything.")
     )
 )
 
@@ -138,9 +144,9 @@ fun PrivacyPolicyScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("Back"))
                     }
-                    Text("Privacy policy", style = MaterialTheme.typography.titleLarge)
+                    Text(tr("Privacy policy"), style = MaterialTheme.typography.titleLarge)
                 }
             }
 
@@ -154,12 +160,12 @@ fun PrivacyPolicyScreen(
                 verticalArrangement = Arrangement.spacedBy(Spacing.xl)
             ) {
                 Header()
-                PointsSection("What the app uses", permissionsUsed)
-                PointsSection("What is stored", storedData)
-                PointsSection("Your data, your control", yourChoices)
+                PointsSection(tr("What the app uses"), permissionsUsed())
+                PointsSection(tr("What is stored"), storedData())
+                PointsSection(tr("Your data, your control"), yourChoices())
                 Text(
-                    text = "Policy version ${AnnouncerSettings.PRIVACY_POLICY_VERSION}. " +
-                        "If this policy changes, you'll be asked to review it again.",
+                    text = tr("Policy version %d. If this policy changes, you'll be asked to review it again.",
+                        AnnouncerSettings.PRIVACY_POLICY_VERSION),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = Spacing.xs)
@@ -185,14 +191,14 @@ private fun Header() {
         IconTile(icon = Icons.Default.Shield, size = 72.dp, circle = true)
         Spacer(Modifier.height(Spacing.lg))
         Text(
-            text = "Your privacy",
+            text = tr("Your privacy"),
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(Spacing.sm))
         Text(
-            text = "Call Announcer speaks the name or number of whoever is calling. " +
-                "Here's exactly what it needs to do that.",
+            text = tr("Call Announcer speaks the name or number of whoever is calling. " +
+                "Here's exactly what it needs to do that."),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
@@ -206,7 +212,7 @@ private fun Header() {
                 modifier = Modifier.padding(end = Spacing.xs)
             )
             Text(
-                text = "Everything stays on this phone",
+                text = tr("Everything stays on this phone"),
                 style = MaterialTheme.typography.labelLarge,
                 color = AccentGreen
             )
@@ -240,7 +246,7 @@ private fun ConsentBar(onAccept: () -> Unit, onDecline: () -> Unit) {
                     .padding(Spacing.lg)
             ) {
                 Text(
-                    text = "By tapping Accept, you agree to this privacy policy. The app can't announce calls without it.",
+                    text = tr("By tapping Accept, you agree to this privacy policy. The app can't announce calls without it."),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -254,7 +260,7 @@ private fun ConsentBar(onAccept: () -> Unit, onDecline: () -> Unit) {
                             .height(48.dp)
                             .testTag("privacy_decline_button")
                     ) {
-                        Text("Decline")
+                        Text(tr("Decline"))
                     }
                     Button(
                         onClick = onAccept,
@@ -264,7 +270,7 @@ private fun ConsentBar(onAccept: () -> Unit, onDecline: () -> Unit) {
                             .height(48.dp)
                             .testTag("privacy_accept_button")
                     ) {
-                        Text("Accept")
+                        Text(tr("Accept"))
                     }
                 }
             }

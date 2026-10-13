@@ -1,5 +1,7 @@
 package com.example.ui.components
 
+import com.example.i18n.tr
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -75,7 +77,7 @@ fun SimulatedCallBanner(
                 modifier = Modifier.align(Alignment.TopCenter),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                StatusPill(text = "Simulated call", color = MaterialTheme.colorScheme.primary)
+                StatusPill(text = tr("Simulated call"), color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(48.dp))
                 PulsingAvatar(announcementResult)
                 Spacer(Modifier.height(24.dp))
@@ -85,7 +87,7 @@ fun SimulatedCallBanner(
                     textAlign = TextAlign.Center
                 )
                 Text(
-                    text = if (announcementResult.isKnownContact) "Mobile · saved contact" else "Unknown number",
+                    text = if (announcementResult.isKnownContact) tr("Mobile · saved contact") else tr("Unknown number"),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -105,7 +107,7 @@ fun SimulatedCallBanner(
                         Spacer(Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = if (isSpeaking) "ANNOUNCING" else "WILL SAY",
+                                text = if (isSpeaking) tr("ANNOUNCING") else tr("WILL SAY"),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -115,7 +117,7 @@ fun SimulatedCallBanner(
                             )
                             if (isSpeaking) {
                                 Text(
-                                    text = "Ringtone lowered while speaking",
+                                    text = tr("Ringtone lowered while speaking"),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -132,8 +134,8 @@ fun SimulatedCallBanner(
                     .padding(bottom = 24.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                CallButton("Decline", Icons.Default.CallEnd, AccentRed, onDecline, "simulated_decline_button")
-                CallButton("Answer", Icons.Default.Call, AccentGreen, onAnswer, "simulated_answer_button")
+                CallButton(tr("Decline"), Icons.Default.CallEnd, AccentRed, onDecline, "simulated_decline_button")
+                CallButton(tr("Answer"), Icons.Default.Call, AccentGreen, onAnswer, "simulated_answer_button")
             }
         }
     }

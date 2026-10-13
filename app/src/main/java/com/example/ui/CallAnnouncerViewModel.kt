@@ -18,6 +18,8 @@ import com.example.data.ContactPreferences
 import com.example.data.ContactRule
 import com.example.data.HeadphoneMode
 import com.example.data.ThemeMode
+import com.example.i18n.AppLanguage
+import com.example.i18n.tr
 import com.example.service.AnnouncerSwitch
 import com.example.service.CallAnnouncerService
 import com.example.tts.DirectTtsAnnouncer
@@ -205,6 +207,11 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
 
     fun updateThemeMode(mode: ThemeMode) {
         appSettings.updateSettings { it.copy(themeMode = mode) }
+    }
+
+    fun updateAppLanguage(language: AppLanguage) {
+        appSettings.updateSettings { it.copy(appLanguage = language) }
+        refreshReadiness()
     }
 
     fun toggleAnnounceContacts() {
@@ -416,7 +423,7 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
     fun exportBackup(uri: Uri, onResult: (String) -> Unit) = viewModelScope.launch {
         val message = withContext(Dispatchers.IO) {
             runCatching { BackupManager.export(getApplication(), uri) }
-                .fold({ "Backup saved" }, { "Backup failed: ${it.message}" })
+                .fold({ tr("Backup saved") }, { tr("Backup failed: %s", it.message) })
         }
         onResult(message)
     }
@@ -424,7 +431,7 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
     fun importBackup(uri: Uri, onResult: (String) -> Unit) = viewModelScope.launch {
         val message = withContext(Dispatchers.IO) {
             runCatching { BackupManager.import(getApplication(), uri) }
-                .fold({ "Settings restored" }, { "Restore failed: ${it.message}" })
+                .fold({ tr("Settings restored") }, { tr("Restore failed: %s", it.message) })
         }
         _spamNumbers.value = SpamChecker.markedNumbers(getApplication())
         refreshReadiness()

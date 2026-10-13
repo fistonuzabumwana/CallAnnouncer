@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.i18n.tr
+
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -90,7 +92,7 @@ fun DashboardScreen(
             onFinishSetup = onNavigateToSetup
         )
 
-        Section(title = "Try it") {
+        Section(title = tr("Try it")) {
             Column(modifier = Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 Row(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -103,7 +105,7 @@ fun DashboardScreen(
                                 onContactNameChange(sample.name)
                                 onPhoneNumberChange(sample.number)
                             },
-                            label = { Text(sample.label) }
+                            label = { Text(tr(sample.label)) }
                         )
                     }
                 }
@@ -111,7 +113,7 @@ fun DashboardScreen(
                 OutlinedTextField(
                     value = testPhoneNumber,
                     onValueChange = onPhoneNumberChange,
-                    label = { Text("Phone number") },
+                    label = { Text(tr("Phone number")) },
                     leadingIcon = { Icon(Icons.Outlined.Phone, contentDescription = null) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true,
@@ -123,7 +125,7 @@ fun DashboardScreen(
                 OutlinedTextField(
                     value = testContactName,
                     onValueChange = onContactNameChange,
-                    label = { Text("Contact name (optional)") },
+                    label = { Text(tr("Contact name (optional)")) },
                     leadingIcon = { Icon(Icons.Outlined.Person, contentDescription = null) },
                     singleLine = true,
                     shape = MaterialTheme.shapes.medium,
@@ -149,7 +151,7 @@ fun DashboardScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(Modifier.width(6.dp))
-                        Text(if (isSpeaking) "Stop" else "Play voice")
+                        Text(if (isSpeaking) tr("Stop") else tr("Play voice"))
                     }
                     Button(
                         onClick = onSimulateCall,
@@ -161,34 +163,34 @@ fun DashboardScreen(
                     ) {
                         Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Simulate call")
+                        Text(tr("Simulate call"))
                     }
                 }
             }
         }
 
-        Section(title = "How it works") {
+        Section(title = tr("How it works")) {
             ListRow(
                 icon = Icons.Default.Person,
-                title = "Saved contacts",
-                subtitle = "Says the name you saved, e.g. \"Incoming call from Alice\"."
+                title = tr("Saved contacts"),
+                subtitle = tr("Says the name you saved, e.g. \"Incoming call from Alice\".")
             )
             GroupDivider()
             ListRow(
                 icon = Icons.Default.Dialpad,
-                title = "Unknown numbers",
-                subtitle = "Reads the number two digits at a time: 07 85 46 12 34."
+                title = tr("Unknown numbers"),
+                subtitle = tr("Reads the number two digits at a time: 07 85 46 12 34.")
             )
             GroupDivider()
             ListRow(
                 icon = Icons.AutoMirrored.Filled.VolumeDown,
-                title = "Ringtone lowered while speaking",
-                subtitle = "Restored as soon as you answer, decline, or the call ends."
+                title = tr("Ringtone lowered while speaking"),
+                subtitle = tr("Restored as soon as you answer, decline, or the call ends.")
             )
             GroupDivider()
             ListRow(
                 icon = Icons.Default.Tune,
-                title = "Customize voice and wording",
+                title = tr("Customize voice and wording"),
                 onClick = onNavigateToSettings
             ) {
                 Icon(
@@ -214,18 +216,19 @@ private fun StatusHero(
     val (accent, title, body) = when {
         !enabled -> Triple(
             MaterialTheme.colorScheme.onSurfaceVariant,
-            "Announcer is paused",
-            "Turn it on to hear who is calling."
+            tr("Announcer is paused"),
+            tr("Turn it on to hear who is calling.")
         )
         missing > 0 -> Triple(
             AccentAmber,
-            "Almost ready",
-            "$missing setup ${if (missing == 1) "step" else "steps"} left before calls are announced while the app is closed."
+            tr("Almost ready"),
+            if (missing == 1) tr("1 setup step left before calls are announced while the app is closed.")
+            else tr("%d setup steps left before calls are announced while the app is closed.", missing)
         )
         else -> Triple(
             AccentGreen,
-            "You're covered",
-            "Every incoming call will be announced, even when the app is closed."
+            tr("You're covered"),
+            tr("Every incoming call will be announced, even when the app is closed.")
         )
     }
 
@@ -263,7 +266,7 @@ private fun StatusHero(
                     .height(48.dp)
                     .testTag("permission_alert_card")
             ) {
-                Text("Finish setup")
+                Text(tr("Finish setup"))
             }
         }
     }
@@ -288,7 +291,7 @@ private fun PreviewBubble(preview: AnnouncementResult) {
             Spacer(Modifier.width(Spacing.md))
             Column {
                 Text(
-                    text = "YOU'LL HEAR",
+                    text = tr("YOU'LL HEAR"),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -301,9 +304,9 @@ private fun PreviewBubble(preview: AnnouncementResult) {
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = when {
-                        preview.hasMtnCarrier -> "Saved contact · \"MTN\" is spelled out as M-T-N"
-                        preview.isKnownContact -> "Saved contact · name is spoken"
-                        else -> "Unknown number · read in pairs"
+                        preview.hasMtnCarrier -> tr("Saved contact · \"MTN\" is spelled out as M-T-N")
+                        preview.isKnownContact -> tr("Saved contact · name is spoken")
+                        else -> tr("Unknown number · read in pairs")
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant

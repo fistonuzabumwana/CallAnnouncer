@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.i18n.tr
+
 import android.text.format.DateFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -92,7 +94,7 @@ fun HistoryScreen(
                             TextButton(
                                 onClick = { confirmClear = true },
                                 modifier = Modifier.testTag("clear_history_button")
-                            ) { Text("Clear all") }
+                            ) { Text(tr("Clear all")) }
                         }
                     } else null
                 )
@@ -116,16 +118,16 @@ fun HistoryScreen(
     if (confirmClear) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },
-            title = { Text("Clear history?") },
-            text = { Text("All ${callLogs.size} announced calls will be removed from this list.") },
+            title = { Text(tr("Clear history?")) },
+            text = { Text(tr("All %d announced calls will be removed from this list.", callLogs.size)) },
             confirmButton = {
                 TextButton(onClick = {
                     onClearAll()
                     confirmClear = false
-                }) { Text("Clear") }
+                }) { Text(tr("Clear")) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmClear = false }) { Text("Cancel") }
+                TextButton(onClick = { confirmClear = false }) { Text(tr("Cancel")) }
             }
         )
     }
@@ -193,7 +195,7 @@ private fun CallLogRow(
                     )
                     if (isSpam) {
                         Text(
-                            text = "Marked as spam",
+                            text = tr("Marked as spam"),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.error
                         )
@@ -215,7 +217,7 @@ private fun CallLogRow(
                 IconButton(onClick = onReplay) {
                     Icon(
                         Icons.AutoMirrored.Filled.VolumeUp,
-                        contentDescription = "Replay announcement",
+                        contentDescription = tr("Replay announcement"),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -223,14 +225,14 @@ private fun CallLogRow(
                     IconButton(onClick = { menuOpen = true }, modifier = Modifier.testTag("call_log_menu_${log.id}")) {
                         Icon(
                             Icons.Default.MoreVert,
-                            contentDescription = "More",
+                            contentDescription = tr("More"),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         if (hasNumber) {
                             DropdownMenuItem(
-                                text = { Text("Pronunciation & rules") },
+                                text = { Text(tr("Pronunciation & rules")) },
                                 leadingIcon = { Icon(Icons.Default.RecordVoiceOver, contentDescription = null) },
                                 onClick = {
                                     menuOpen = false
@@ -240,7 +242,7 @@ private fun CallLogRow(
                         }
                         if (hasNumber && !log.isKnownContact) {
                             DropdownMenuItem(
-                                text = { Text(if (isSpam) "Not spam" else "Mark as spam") },
+                                text = { Text(if (isSpam) tr("Not spam") else tr("Mark as spam")) },
                                 leadingIcon = { Icon(Icons.Default.ReportProblem, contentDescription = null) },
                                 onClick = {
                                     menuOpen = false
@@ -249,7 +251,7 @@ private fun CallLogRow(
                             )
                         }
                         DropdownMenuItem(
-                            text = { Text("Delete") },
+                            text = { Text(tr("Delete")) },
                             leadingIcon = { Icon(Icons.Outlined.DeleteOutline, contentDescription = null) },
                             onClick = {
                                 menuOpen = false
@@ -302,10 +304,10 @@ private fun EmptyHistory() {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             IconTile(Icons.Outlined.History, size = 72.dp, circle = true)
             Spacer(Modifier.height(Spacing.lg))
-            Text("No calls yet", style = MaterialTheme.typography.titleLarge)
+            Text(tr("No calls yet"), style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(Spacing.sm))
             Text(
-                text = "Announced calls appear here, so you can replay what was said.",
+                text = tr("Announced calls appear here, so you can replay what was said."),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -321,8 +323,8 @@ private fun dayLabel(timestamp: Long): String {
         a.get(Calendar.YEAR) == b.get(Calendar.YEAR) && a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR)
     val yesterday = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -1) }
     return when {
-        sameDay(day, today) -> "Today"
-        sameDay(day, yesterday) -> "Yesterday"
+        sameDay(day, today) -> tr("Today")
+        sameDay(day, yesterday) -> tr("Yesterday")
         else -> SimpleDateFormat("EEE d MMM", Locale.getDefault()).format(Date(timestamp))
     }
 }

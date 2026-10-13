@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.i18n.tr
+
 import android.app.Activity
 import android.content.Intent
 import android.provider.ContactsContract
@@ -101,10 +103,10 @@ fun ContactRulesScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Contacts & pronunciation") },
+                title = { Text(tr("Contacts & pronunciation")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("Back"))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
@@ -119,7 +121,7 @@ fun ContactRulesScreen(
                     }
                 },
                 icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("Add contact") },
+                text = { Text(tr("Add contact")) },
                 modifier = Modifier.testTag("add_contact_rule")
             )
         }
@@ -129,7 +131,7 @@ fun ContactRulesScreen(
                 EmptyRules()
             } else {
                 ScreenColumn {
-                    Section(title = "${rules.size} contacts") {
+                    Section(title = tr("%d contacts", rules.size)) {
                         rules.forEachIndexed { index, rule ->
                             if (index > 0) GroupDivider()
                             ListRow(
@@ -185,7 +187,7 @@ fun ContactRuleDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 Text(
-                    "Sounds wrong? Write the name the way it sounds, for example \u201CChoo-sah\u201D for Cyusa.",
+                    tr("Sounds wrong? Write the name the way it sounds, for example \u201CChoo-sah\u201D for Cyusa."),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -193,7 +195,7 @@ fun ContactRuleDialog(
                     OutlinedTextField(
                         value = spoken,
                         onValueChange = { spoken = it },
-                        label = { Text("Say it as") },
+                        label = { Text(tr("Say it as")) },
                         placeholder = { Text(draft.displayName) },
                         singleLine = true,
                         shape = MaterialTheme.shapes.medium,
@@ -202,10 +204,10 @@ fun ContactRuleDialog(
                             .testTag("spoken_name_field")
                     )
                     IconButton(onClick = { onPreview(draft.displayName, spoken.ifBlank { null }) }) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = "Listen", tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Default.PlayArrow, contentDescription = tr("Listen"), tint = MaterialTheme.colorScheme.primary)
                     }
                 }
-                Text("Announce", style = MaterialTheme.typography.titleSmall)
+                Text(tr("Announce"), style = MaterialTheme.typography.titleSmall)
                 val rules = ContactRule.entries
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     rules.forEachIndexed { index, option ->
@@ -225,12 +227,12 @@ fun ContactRuleDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(draft.copy(spokenName = spoken.trim(), rule = rule)) }) { Text("Save") }
+            TextButton(onClick = { onSave(draft.copy(spokenName = spoken.trim(), rule = rule)) }) { Text(tr("Save")) }
         },
         dismissButton = {
             Row {
-                if (canRemove) TextButton(onClick = onRemove) { Text("Reset") }
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+                if (canRemove) TextButton(onClick = onRemove) { Text(tr("Reset")) }
+                TextButton(onClick = onDismiss) { Text(tr("Cancel")) }
             }
         }
     )
@@ -247,11 +249,11 @@ private fun EmptyRules() {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             IconTile(Icons.Default.RecordVoiceOver, size = 72.dp, circle = true)
             Spacer(Modifier.height(Spacing.lg))
-            Text("Make every name sound right", style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
+            Text(tr("Make every name sound right"), style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
             Spacer(Modifier.height(Spacing.sm))
             Text(
-                text = "Fix how a name is pronounced, always announce important people, or never announce someone. " +
-                    "You can also do this from History.",
+                text = tr("Fix how a name is pronounced, always announce important people, or never announce someone. " +
+                    "You can also do this from History."),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -261,25 +263,25 @@ private fun EmptyRules() {
 }
 
 private fun ContactPreference.summary(): String {
-    val said = spokenName?.let { "Said as \u201C$it\u201D" }
+    val said = spokenName?.let { tr("Said as \u201C%s\u201D", it) }
     val ruleText = when (rule) {
         ContactRule.NORMAL -> null
-        ContactRule.VIP -> "Always announced, even in quiet hours"
-        ContactRule.NEVER -> "Never announced"
+        ContactRule.VIP -> tr("Always announced, even in quiet hours")
+        ContactRule.NEVER -> tr("Never announced")
     }
-    return listOfNotNull(said, ruleText).joinToString(" Â· ").ifEmpty { "Normal" }
+    return listOfNotNull(said, ruleText).joinToString(" · ").ifEmpty { tr("Normal") }
 }
 
 private fun ContactRule.shortLabel() = when (this) {
-    ContactRule.NORMAL -> "Normal"
-    ContactRule.VIP -> "Always"
-    ContactRule.NEVER -> "Never"
+    ContactRule.NORMAL -> tr("Normal")
+    ContactRule.VIP -> tr("Always")
+    ContactRule.NEVER -> tr("Never")
 }
 
 private fun ContactRule.explanation() = when (this) {
-    ContactRule.NORMAL -> "Follows your settings."
-    ContactRule.VIP -> "Announced even during quiet hours or when contacts are switched off."
-    ContactRule.NEVER -> "Their calls ring normally but are never announced."
+    ContactRule.NORMAL -> tr("Follows your settings.")
+    ContactRule.VIP -> tr("Announced even during quiet hours or when contacts are switched off.")
+    ContactRule.NEVER -> tr("Their calls ring normally but are never announced.")
 }
 
 private fun ContactRule.icon() = when (this) {

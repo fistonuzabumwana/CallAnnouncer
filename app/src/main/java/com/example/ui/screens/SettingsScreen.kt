@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.i18n.tr
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -75,15 +77,15 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 private fun PairSpokenMode.shortTitle() = when (this) {
-    PairSpokenMode.PAIRED_NUMBERS -> "Number pairs"
-    PairSpokenMode.PAIRED_DIGIT_WORDS -> "Digit by digit"
-    PairSpokenMode.PAIRED_SPACED_DIGITS -> "Spaced digits"
+    PairSpokenMode.PAIRED_NUMBERS -> tr("Number pairs")
+    PairSpokenMode.PAIRED_DIGIT_WORDS -> tr("Digit by digit")
+    PairSpokenMode.PAIRED_SPACED_DIGITS -> tr("Spaced digits")
 }
 
 private fun PairSpokenMode.example() = when (this) {
-    PairSpokenMode.PAIRED_NUMBERS -> "\u201Czero seven, eighty-five, forty-six\u201D"
-    PairSpokenMode.PAIRED_DIGIT_WORDS -> "\u201Czero seven, eight five, four six\u201D"
-    PairSpokenMode.PAIRED_SPACED_DIGITS -> "\u201Czero seven, 8 5, 4 6\u201D with short pauses"
+    PairSpokenMode.PAIRED_NUMBERS -> tr("\u201Czero seven, eighty-five, forty-six\u201D")
+    PairSpokenMode.PAIRED_DIGIT_WORDS -> tr("\u201Czero seven, eight five, four six\u201D")
+    PairSpokenMode.PAIRED_SPACED_DIGITS -> tr("\u201Czero seven, 8 5, 4 6\u201D with short pauses")
 }
 
 private fun Locale.label(): String = getDisplayName(this).replaceFirstChar { it.uppercase() }
@@ -115,13 +117,13 @@ fun SettingsScreen(
     more: MoreSettingsActions
 ) {
     ScreenColumn {
-        Section(title = "Voice") {
+        Section(title = tr("Voice")) {
             LanguageRow(settings.voiceLanguage, availableLanguages, onVoiceLanguageChange)
             GroupDivider()
             NamePronunciationRow(settings.smartNamePronunciation, availableLanguages, onToggleSmartNames)
             GroupDivider()
             SliderRow(
-                title = "Speed",
+                title = tr("Speed"),
                 valueLabel = "${(settings.speechRate * 10).roundToInt() / 10f}×",
                 value = settings.speechRate,
                 range = 0.6f..1.5f,
@@ -129,7 +131,7 @@ fun SettingsScreen(
                 testTag = "speech_rate_slider"
             )
             SliderRow(
-                title = "Pitch",
+                title = tr("Pitch"),
                 valueLabel = "${(settings.speechPitch * 10).roundToInt() / 10f}×",
                 value = settings.speechPitch,
                 range = 0.6f..1.4f,
@@ -147,17 +149,17 @@ fun SettingsScreen(
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Play sample")
+                Text(tr("Play sample"))
             }
         }
 
-        Section(title = "What's said") {
+        Section(title = tr("What's said")) {
             AnnouncementLanguageRow(settings.announcementLanguage, more.onAnnouncementLanguageChange)
             Column(modifier = Modifier.padding(Spacing.lg)) {
                 OutlinedTextField(
                     value = settings.prefixText,
                     onValueChange = onPrefixChange,
-                    label = { Text("Before the caller's name") },
+                    label = { Text(tr("Before the caller's name")) },
                     singleLine = true,
                     shape = MaterialTheme.shapes.medium,
                     modifier = Modifier
@@ -177,7 +179,7 @@ fun SettingsScreen(
             GroupDivider()
 
             Text(
-                text = "Reading unknown numbers",
+                text = tr("Reading unknown numbers"),
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.padding(start = Spacing.lg, top = Spacing.lg, end = Spacing.lg)
             )
@@ -206,7 +208,7 @@ fun SettingsScreen(
             GroupDivider()
 
             Column(modifier = Modifier.padding(Spacing.lg)) {
-                Text("Say it", style = MaterialTheme.typography.titleSmall)
+                Text(tr("Say it"), style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.height(Spacing.sm))
                 val counts = listOf(1, 2, 3, 5)
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -216,14 +218,14 @@ fun SettingsScreen(
                             onClick = { onRepeatCountChange(count) },
                             shape = SegmentedButtonDefaults.itemShape(index, counts.size)
                         ) {
-                            Text(if (count == 1) "Once" else "${count}×")
+                            Text(if (count == 1) tr("Once") else "${count}×")
                         }
                     }
                 }
             }
             SliderRow(
-                title = "Wait before speaking",
-                subtitle = "The ringtone plays normally first, then lowers while the name is spoken.",
+                title = tr("Wait before speaking"),
+                subtitle = tr("The ringtone plays normally first, then lowers while the name is spoken."),
                 valueLabel = "${settings.initialDelayMs / 1000f}s",
                 value = settings.initialDelayMs.toFloat(),
                 range = 0f..5000f,
@@ -234,11 +236,11 @@ fun SettingsScreen(
             Spacer(Modifier.height(Spacing.sm))
         }
 
-        Section(title = "Volume") {
+        Section(title = tr("Volume")) {
             SwitchRow(
                 icon = Icons.AutoMirrored.Filled.VolumeUp,
-                title = "Louder than the ringtone",
-                subtitle = "Speaks about 30% louder than your ringtone volume.",
+                title = tr("Louder than the ringtone"),
+                subtitle = tr("Speaks about 30% louder than your ringtone volume."),
                 checked = settings.syncRingtoneVolume,
                 onCheckedChange = { onToggleSyncRingtone() },
                 modifier = Modifier.testTag("toggle_sync_ringtone_switch")
@@ -246,27 +248,27 @@ fun SettingsScreen(
             GroupDivider()
             SwitchRow(
                 icon = Icons.AutoMirrored.Filled.VolumeDown,
-                title = "Lower ringtone while speaking",
-                subtitle = "Restored when the announcement ends or the call is answered.",
+                title = tr("Lower ringtone while speaking"),
+                subtitle = tr("Restored when the announcement ends or the call is answered."),
                 checked = settings.duckRingtone,
                 onCheckedChange = { onToggleDuckRingtone() },
                 modifier = Modifier.testTag("toggle_duck_ringtone_switch")
             )
         }
 
-        Section(title = "Who to announce") {
+        Section(title = tr("Who to announce")) {
             SwitchRow(
                 icon = Icons.Default.Person,
-                title = "Saved contacts",
-                subtitle = "Speaks the contact's name.",
+                title = tr("Saved contacts"),
+                subtitle = tr("Speaks the contact's name."),
                 checked = settings.announceContacts,
                 onCheckedChange = { onToggleContacts() }
             )
             GroupDivider()
             SwitchRow(
                 icon = Icons.Default.PersonOff,
-                title = "Unknown numbers",
-                subtitle = "Reads the number in pairs.",
+                title = tr("Unknown numbers"),
+                subtitle = tr("Reads the number in pairs."),
                 checked = settings.announceUnknowns,
                 onCheckedChange = { onToggleUnknowns() }
             )
@@ -277,11 +279,11 @@ fun SettingsScreen(
         QuietSection(settings, more)
         StopSection(settings, more)
 
-        Section(title = "Calls from apps") {
+        Section(title = tr("Calls from apps")) {
             SwitchRow(
                 icon = Icons.AutoMirrored.Filled.Chat,
-                title = "WhatsApp",
-                subtitle = "Voice and video calls, including WhatsApp Business.",
+                title = tr("WhatsApp"),
+                subtitle = tr("Voice and video calls, including WhatsApp Business."),
                 checked = settings.announceWhatsApp,
                 onCheckedChange = { onToggleWhatsApp() },
                 modifier = Modifier.testTag("toggle_whatsapp_switch")
@@ -289,8 +291,8 @@ fun SettingsScreen(
             GroupDivider()
             SwitchRow(
                 icon = Icons.Default.Apps,
-                title = "Other calling apps",
-                subtitle = "Telegram, Signal, Messenger, Instagram, Teams, Google Meet, Viber, Skype, Zoom and more.",
+                title = tr("Other calling apps"),
+                subtitle = tr("Telegram, Signal, Messenger, Instagram, Teams, Google Meet, Viber, Skype, Zoom and more."),
                 checked = settings.announceOtherApps,
                 onCheckedChange = { onToggleOtherApps() },
                 modifier = Modifier.testTag("toggle_other_apps_switch")
@@ -300,21 +302,23 @@ fun SettingsScreen(
                 ListRow(
                     icon = Icons.Default.NotificationsActive,
                     iconTint = AccentAmber,
-                    title = "Notification access needed",
-                    subtitle = "App calls are found through their call notifications. Only those are read.",
+                    title = tr("Notification access needed"),
+                    subtitle = tr("App calls are found through their call notifications. Only those are read."),
                     onClick = onAllowNotificationAccess,
                     modifier = Modifier.testTag("allow_notification_access_row")
                 ) {
-                    FilledTonalButton(onClick = onAllowNotificationAccess) { Text("Allow") }
+                    FilledTonalButton(onClick = onAllowNotificationAccess) { Text(tr("Allow")) }
                 }
             }
         }
 
         MessagesSection(settings, more, notificationAccessMissing, onAllowNotificationAccess)
 
-        Section(title = "Appearance") {
+        Section(title = tr("Appearance")) {
+            AppLanguageRow(settings.appLanguage, more.onAppLanguageChange)
+            GroupDivider()
             Column(modifier = Modifier.padding(Spacing.lg)) {
-                Text("Theme", style = MaterialTheme.typography.titleSmall)
+                Text(tr("Theme"), style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.height(Spacing.sm))
                 val modes = ThemeMode.entries
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -339,11 +343,11 @@ fun SettingsScreen(
 
         BackupSection(more)
 
-        Section(title = "About") {
+        Section(title = tr("About")) {
             ListRow(
                 icon = Icons.Default.Shield,
-                title = "Privacy policy",
-                subtitle = "Everything stays on this phone",
+                title = tr("Privacy policy"),
+                subtitle = tr("Everything stays on this phone"),
                 onClick = onOpenPrivacyPolicy,
                 modifier = Modifier.testTag("privacy_policy_row")
             ) {
@@ -360,9 +364,9 @@ fun SettingsScreen(
 }
 
 private fun ThemeMode.label() = when (this) {
-    ThemeMode.SYSTEM -> "System"
-    ThemeMode.LIGHT -> "Light"
-    ThemeMode.DARK -> "Dark"
+    ThemeMode.SYSTEM -> tr("System")
+    ThemeMode.LIGHT -> tr("Light")
+    ThemeMode.DARK -> tr("Dark")
 }
 
 private fun ThemeMode.icon() = when (this) {
@@ -382,11 +386,11 @@ private fun NamePronunciationRow(
     val hasFrench = languages.any { it.language == NamePronunciation.FRENCH }
     SwitchRow(
         icon = Icons.Default.RecordVoiceOver,
-        title = "Rwandan & French names",
+        title = tr("Rwandan & French names"),
         subtitle = when {
-            !enabled -> "Names are read by the main voice."
-            hasSwahili -> "Rwandan names use the Swahili voice" + if (hasFrench) ", French names the French voice." else "."
-            else -> "Rwandan names are respelled for the English voice. The Swahili voice sounds much closer."
+            !enabled -> tr("Names are read by the main voice.")
+            hasSwahili -> if (hasFrench) tr("Rwandan names use the Swahili voice, French names the French voice.") else tr("Rwandan names use the Swahili voice.")
+            else -> tr("Rwandan names are respelled for the English voice. The Swahili voice sounds much closer.")
         },
         checked = enabled,
         onCheckedChange = { onToggle() },
@@ -405,7 +409,7 @@ private fun NamePronunciationRow(
         ) {
             Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(6.dp))
-            Text("Get Swahili voice")
+            Text(tr("Get Swahili voice"))
         }
     }
 }
@@ -417,12 +421,12 @@ private fun LanguageRow(
     onSelect: (String) -> Unit
 ) {
     var open by remember { mutableStateOf(false) }
-    val selected = languages.firstOrNull { it.toLanguageTag() == selectedTag }?.label() ?: "Phone default"
+    val selected = languages.firstOrNull { it.toLanguageTag() == selectedTag }?.label() ?: tr("Phone default")
 
     Box {
         ListRow(
             icon = Icons.Default.Language,
-            title = "Language",
+            title = tr("Language"),
             subtitle = selected,
             onClick = { open = true },
             modifier = Modifier.testTag("voice_language_button")
@@ -431,7 +435,7 @@ private fun LanguageRow(
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(
-                text = { Text("Phone default") },
+                text = { Text(tr("Phone default")) },
                 onClick = {
                     onSelect("")
                     open = false
@@ -457,7 +461,7 @@ private fun LanguageRow(
             }
             if (languages.isEmpty()) {
                 DropdownMenuItem(
-                    text = { Text("Download voices in Android Settings → Text-to-speech") },
+                    text = { Text(tr("Download voices in Android Settings → Text-to-speech")) },
                     onClick = { open = false },
                     enabled = false
                 )

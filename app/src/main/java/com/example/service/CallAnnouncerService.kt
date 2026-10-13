@@ -1,5 +1,7 @@
 package com.example.service
 
+import com.example.i18n.tr
+
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -116,7 +118,7 @@ class CallAnnouncerService : Service() {
                 val enable = !appSettings.getSettings().isEnabled
                 appSettings.updateSettings { it.copy(isEnabled = enable) }
                 AnnouncerSwitch.refreshControls(this)
-                updateNotification(if (enable) "Announcer Active" else "Announcer Paused")
+                updateNotification(if (enable) tr("Announcer Active") else tr("Announcer Paused"))
             }
             ACTION_INCOMING_CALL -> {
                 if (callState != -1) {
@@ -145,7 +147,7 @@ class CallAnnouncerService : Service() {
                     return
                 }
                 IncomingCallHandler.onRinging(this, numberFromIntent) { callerIdentifier ->
-                    updateNotification("Announcing: $callerIdentifier")
+                    updateNotification(tr("Announcing: %s", callerIdentifier))
                 }
             }
             TelephonyManager.CALL_STATE_OFFHOOK,
@@ -165,8 +167,8 @@ class CallAnnouncerService : Service() {
         } catch (e: Exception) {
             emptyList()
         }
-        return if (blocking.isEmpty()) "Monitoring incoming calls"
-        else "Setup incomplete: ${blocking.first().title}. Tap to fix."
+        return if (blocking.isEmpty()) tr("Monitoring incoming calls")
+        else tr("Setup incomplete: %s. Tap to fix.", blocking.first().title)
     }
 
     private fun createNotificationChannel() {
@@ -206,7 +208,7 @@ class CallAnnouncerService : Service() {
         )
 
         val isEnabled = appSettings.getSettings().isEnabled
-        val toggleActionText = if (isEnabled) "Pause" else "Resume"
+        val toggleActionText = if (isEnabled) tr("Pause") else tr("Resume")
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Call Announcer")

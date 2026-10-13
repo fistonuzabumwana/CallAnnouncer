@@ -1,5 +1,7 @@
 package com.example.util
 
+import com.example.i18n.tr
+
 import android.Manifest
 import android.app.ActivityManager
 import android.app.role.RoleManager
@@ -138,55 +140,55 @@ object ReadinessChecker {
             add(
                 ReadinessCheck(
                     item = SetupItem.PHONE_PERMISSIONS,
-                    title = "Phone and call log access",
-                    description = "Detects incoming calls and reads the caller's number.",
+                    title = tr("Phone and call log access"),
+                    description = tr("Detects incoming calls and reads the caller's number."),
                     importance = Importance.REQUIRED,
                     passed = f.hasPhoneState && f.hasCallLog,
-                    fixLabel = "Allow"
+                    fixLabel = tr("Allow")
                 )
             )
             add(
                 ReadinessCheck(
                     item = SetupItem.CONTACTS,
-                    title = "Contacts access",
-                    description = "Speaks saved names instead of numbers, and lets Android wake the app for calls from contacts.",
+                    title = tr("Contacts access"),
+                    description = tr("Speaks saved names instead of numbers, and lets Android wake the app for calls from contacts."),
                     importance = Importance.REQUIRED,
                     passed = f.hasContacts,
-                    fixLabel = "Allow"
+                    fixLabel = tr("Allow")
                 )
             )
             if (f.callScreeningRoleAvailable) {
                 add(
                     ReadinessCheck(
                         item = SetupItem.CALLER_ID_ROLE,
-                        title = "Caller ID app",
-                        description = "Android then wakes Call Announcer for every call, even when the phone has frozen or closed it. " +
-                            "Calls are never blocked. Only one app can hold this: it replaces Truecaller or similar apps for spam blocking.",
+                        title = tr("Caller ID app"),
+                        description = tr("Android then wakes Call Announcer for every call, even when the phone has frozen or closed it. " +
+                            "Calls are never blocked. Only one app can hold this: it replaces Truecaller or similar apps for spam blocking."),
                         importance = Importance.REQUIRED,
                         passed = f.hasCallScreeningRole,
-                        fixLabel = "Set as caller ID app"
+                        fixLabel = tr("Set as caller ID app")
                     )
                 )
             }
             add(
                 ReadinessCheck(
                     item = SetupItem.BATTERY_OPTIMIZATION,
-                    title = "Unrestricted battery use",
-                    description = "Stops Android from putting the announcer to sleep to save battery.",
+                    title = tr("Unrestricted battery use"),
+                    description = tr("Stops Android from putting the announcer to sleep to save battery."),
                     importance = Importance.REQUIRED,
                     passed = f.ignoresBatteryOptimizations,
-                    fixLabel = "Allow"
+                    fixLabel = tr("Allow")
                 )
             )
             if (f.isBackgroundRestricted) {
                 add(
                     ReadinessCheck(
                         item = SetupItem.BACKGROUND_RESTRICTION,
-                        title = "Background activity allowed",
-                        description = "Background use is restricted for this app. Open App info → Battery and choose \"Unrestricted\".",
+                        title = tr("Background activity allowed"),
+                        description = tr("Background use is restricted for this app. Open App info → Battery and choose \"Unrestricted\"."),
                         importance = Importance.REQUIRED,
                         passed = false,
-                        fixLabel = "Open app battery settings"
+                        fixLabel = tr("Open app battery settings")
                     )
                 )
             }
@@ -194,12 +196,12 @@ object ReadinessChecker {
                 add(
                     ReadinessCheck(
                         item = SetupItem.AUTO_START,
-                        title = "${f.manufacturer} auto-start",
-                        description = "${f.manufacturer} phones stop apps that are not on their auto-start list when they are closed. " +
-                            "Turn Call Announcer on in that list, then confirm here.",
+                        title = tr("%s auto-start", f.manufacturer),
+                        description = tr("%s phones stop apps that are not on their auto-start list when they are closed. " +
+                            "Turn Call Announcer on in that list, then confirm here.", f.manufacturer),
                         importance = Importance.REQUIRED,
                         passed = f.autoStartConfirmed || backgroundVerified,
-                        fixLabel = "Open settings",
+                        fixLabel = tr("Open settings"),
                         needsConfirmation = true
                     )
                 )
@@ -207,55 +209,55 @@ object ReadinessChecker {
             add(
                 ReadinessCheck(
                     item = SetupItem.VOICE,
-                    title = "Offline voice installed",
+                    title = tr("Offline voice installed"),
                     description = when {
-                        !f.ttsReady -> "No working text-to-speech engine. Install \"Speech Services by Google\"."
-                        !f.hasOfflineVoice -> "The speech engine has no downloaded voice. Download one so calls are announced without internet."
-                        else -> "A voice is installed and works without internet."
+                        !f.ttsReady -> tr("No working text-to-speech engine. Install \"Speech Services by Google\".")
+                        !f.hasOfflineVoice -> tr("The speech engine has no downloaded voice. Download one so calls are announced without internet.")
+                        else -> tr("A voice is installed and works without internet.")
                     },
                     importance = Importance.REQUIRED,
                     passed = f.ttsReady && f.hasOfflineVoice,
-                    fixLabel = if (!f.ttsReady) "Install speech engine" else "Download a voice"
+                    fixLabel = if (!f.ttsReady) tr("Install speech engine") else tr("Download a voice")
                 )
             )
             add(
                 ReadinessCheck(
                     item = SetupItem.ANNOUNCER_RUNNING,
-                    title = "Announcer switched on",
-                    description = if (!f.announcerEnabled) "Announcements are paused." else "The background announcer is running.",
+                    title = tr("Announcer switched on"),
+                    description = if (!f.announcerEnabled) tr("Announcements are paused.") else tr("The background announcer is running."),
                     importance = Importance.REQUIRED,
                     passed = f.announcerEnabled && f.serviceRunning,
-                    fixLabel = "Turn on"
+                    fixLabel = tr("Turn on")
                 )
             )
 
             add(
                 ReadinessCheck(
                     item = SetupItem.NOTIFICATIONS,
-                    title = "Notifications",
-                    description = "Shows the small \"Monitoring incoming calls\" notification that keeps the announcer visible to Android.",
+                    title = tr("Notifications"),
+                    description = tr("Shows the small \"Monitoring incoming calls\" notification that keeps the announcer visible to Android."),
                     importance = Importance.RECOMMENDED,
                     passed = f.notificationsEnabled,
-                    fixLabel = "Allow"
+                    fixLabel = tr("Allow")
                 )
             )
             if (f.internetCallsWanted) {
                 add(
                     ReadinessCheck(
                         item = SetupItem.INTERNET_CALLS,
-                        title = "WhatsApp and app calls",
+                        title = tr("WhatsApp and app calls"),
                         description = if (f.hasNotificationAccess) {
-                            "Calls from WhatsApp, Telegram, Signal and similar apps are announced too."
+                            tr("Calls from WhatsApp, Telegram, Signal and similar apps are announced too.")
                         } else {
-                            "Allow notification access so calls from WhatsApp, Telegram, Signal and similar apps are announced. " +
-                                "Only call notifications (and messages, if you turn that on) are read." +
+                            tr("Allow notification access so calls from WhatsApp, Telegram, Signal and similar apps are announced. " +
+                                "Only call notifications (and messages, if you turn that on) are read.") +
                                 if (f.sdkInt >= Build.VERSION_CODES.TIRAMISU) {
-                                    " If Android says \"Restricted setting\", open App info → ⋮ → Allow restricted settings, then try again."
+                                    " " + tr("If Android says \"Restricted setting\", open App info → ⋮ → Allow restricted settings, then try again.")
                                 } else ""
                         },
                         importance = Importance.RECOMMENDED,
                         passed = f.hasNotificationAccess,
-                        fixLabel = "Allow"
+                        fixLabel = tr("Allow")
                     )
                 )
             }
@@ -263,11 +265,11 @@ object ReadinessChecker {
                 add(
                     ReadinessCheck(
                         item = SetupItem.UNUSED_APP_PAUSE,
-                        title = "Keep app active when unused",
-                        description = "Turn off \"Pause app activity if unused\" so Android never removes the permissions after months without opening the app.",
+                        title = tr("Keep app active when unused"),
+                        description = tr("Turn off \"Pause app activity if unused\" so Android never removes the permissions after months without opening the app."),
                         importance = Importance.RECOMMENDED,
                         passed = f.exemptFromUnusedAppPause,
-                        fixLabel = "Open settings"
+                        fixLabel = tr("Open settings")
                     )
                 )
             }
@@ -275,20 +277,20 @@ object ReadinessChecker {
                 add(
                     ReadinessCheck(
                         item = SetupItem.POWER_SAVER,
-                        title = "Battery saver is on",
-                        description = "Some phones stop background apps in battery saver. If calls are missed, turn it off or add Call Announcer to its exceptions.",
+                        title = tr("Battery saver is on"),
+                        description = tr("Some phones stop background apps in battery saver. If calls are missed, turn it off or add Call Announcer to its exceptions."),
                         importance = Importance.RECOMMENDED,
                         passed = false,
-                        fixLabel = "Open battery saver"
+                        fixLabel = tr("Open battery saver")
                     )
                 )
             }
             add(
                 ReadinessCheck(
                     item = SetupItem.RINGER_ON,
-                    title = "Ringer on",
-                    description = if (f.isRingerSilenced) "The phone is on silent or vibrate, so calls are not announced until the ringer is turned back on."
-                    else "Calls are announced while the ringer is on.",
+                    title = tr("Ringer on"),
+                    description = if (f.isRingerSilenced) tr("The phone is on silent or vibrate, so calls are not announced until the ringer is turned back on.")
+                    else tr("Calls are announced while the ringer is on."),
                     importance = Importance.RECOMMENDED,
                     passed = !f.isRingerSilenced
                 )
@@ -296,9 +298,9 @@ object ReadinessChecker {
             add(
                 ReadinessCheck(
                     item = SetupItem.REAL_CALL_TEST,
-                    title = "Real call test",
-                    description = if (backgroundVerified) "A real call was announced while the app was closed on this phone."
-                    else "Close the app (swipe it away from recent apps), then ask someone to call you. This proves the phone lets Call Announcer work in the background.",
+                    title = tr("Real call test"),
+                    description = if (backgroundVerified) tr("A real call was announced while the app was closed on this phone.")
+                    else tr("Close the app (swipe it away from recent apps), then ask someone to call you. This proves the phone lets Call Announcer work in the background."),
                     importance = Importance.RECOMMENDED,
                     passed = backgroundVerified
                 )

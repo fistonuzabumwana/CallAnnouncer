@@ -1,5 +1,7 @@
 package com.example.receiver
 
+import com.example.i18n.tr
+
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -43,7 +45,7 @@ class AnnouncerWidgetProvider : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             return RemoteViews(context.packageName, R.layout.widget_announcer).apply {
-                setTextViewText(R.id.widget_status, if (on) "Announcing calls" else "Paused · tap to turn on")
+                setTextViewText(R.id.widget_status, if (on) tr("Announcing calls") else tr("Paused · tap to turn on"))
                 setImageViewResource(R.id.widget_icon, if (on) R.drawable.ic_announcer_on else R.drawable.ic_announcer_off)
                 setInt(R.id.widget_root, "setBackgroundResource",
                     if (on) R.drawable.widget_background_on else R.drawable.widget_background_off)

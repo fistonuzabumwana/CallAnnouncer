@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.i18n.tr
+
 import android.os.Build
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -54,14 +56,14 @@ fun SetupScreen(
     ScreenColumn {
         SummaryCard(report, isGuiding, onFixEverything)
 
-        Section(title = "Required") {
+        Section(title = tr("Required")) {
             report.required.forEachIndexed { index, check ->
                 if (index > 0) GroupDivider()
                 CheckRow(check, onFix, onConfirm)
             }
         }
 
-        Section(title = "Recommended") {
+        Section(title = tr("Recommended")) {
             report.recommended.forEachIndexed { index, check ->
                 if (index > 0) GroupDivider()
                 CheckRow(check, onFix, onConfirm)
@@ -99,12 +101,12 @@ private fun SummaryCard(report: ReadinessReport, isGuiding: Boolean, onFixEveryt
             Spacer(Modifier.width(Spacing.lg))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (ready) "All set" else "$done of $total done",
+                    text = if (ready) tr("All set") else tr("%d of %d done", done, total),
                     style = MaterialTheme.typography.titleLarge
                 )
                 Text(
-                    text = if (ready) "Calls will be announced, even when the app is closed."
-                    else "Finish the steps below so calls are announced when the app is closed.",
+                    text = if (ready) tr("Calls will be announced, even when the app is closed.")
+                    else tr("Finish the steps below so calls are announced when the app is closed."),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -135,10 +137,10 @@ private fun SummaryCard(report: ReadinessReport, isGuiding: Boolean, onFixEveryt
             ) {
                 Icon(Icons.Default.AutoFixHigh, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(Spacing.sm))
-                Text(if (isGuiding) "Approve each screen…" else "Fix everything")
+                Text(if (isGuiding) tr("Approve each screen…") else tr("Fix everything"))
             }
             Text(
-                text = "Opens each setting in turn. Tap Allow, then come back; the next one opens automatically.",
+                text = tr("Opens each setting in turn. Tap Allow, then come back; the next one opens automatically."),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = Spacing.sm)
@@ -187,7 +189,7 @@ private fun CheckRow(
                 if (check.needsConfirmation) {
                     Spacer(Modifier.width(Spacing.sm))
                     OutlinedButton(onClick = { onConfirm(check) }, shape = MaterialTheme.shapes.small) {
-                        Text("It's on")
+                        Text(tr("It's on"))
                     }
                 }
             }

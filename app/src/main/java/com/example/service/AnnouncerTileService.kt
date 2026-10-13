@@ -1,5 +1,7 @@
 package com.example.service
 
+import com.example.i18n.tr
+
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
@@ -25,7 +27,7 @@ class AnnouncerTileService : TileService() {
         val on = AnnouncerSwitch.isOn(this)
         tile.state = if (on) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         tile.label = "Call Announcer"
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) tile.subtitle = if (on) "On" else "Paused"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) tile.subtitle = if (on) tr("On") else tr("Paused")
         tile.updateTile()
     }
 }

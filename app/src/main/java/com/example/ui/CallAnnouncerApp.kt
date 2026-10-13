@@ -45,6 +45,7 @@ import com.example.ui.screens.ContactRuleDraft
 import com.example.ui.screens.ContactRulesScreen
 import com.example.ui.screens.MoreSettingsActions
 import com.example.data.ContactRule
+import com.example.i18n.tr
 import com.example.util.SetupItem
 import com.example.util.SpamChecker
 import android.widget.Toast
@@ -140,7 +141,7 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
             containerColor = MaterialTheme.colorScheme.background,
             topBar = {
                 CallAnnouncerTopBar(
-                    title = currentTab.title,
+                    title = tr(currentTab.title),
                     isEnabled = settings.isEnabled,
                     isReady = readiness.isReady,
                     isSpeaking = isSpeaking,
@@ -162,11 +163,11 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
                                 BadgedBox(badge = { if (badge > 0) Badge { Text("$badge") } }) {
                                     Icon(
                                         if (selected) tab.selectedIcon else tab.icon,
-                                        contentDescription = tab.label
+                                        contentDescription = tr(tab.label)
                                     )
                                 }
                             },
-                            label = { Text(tab.label) },
+                            label = { Text(tr(tab.label)) },
                             colors = NavigationBarItemDefaults.colors(
                                 indicatorColor = MaterialTheme.colorScheme.primaryContainer,
                                 selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -237,7 +238,8 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
                             contactRuleCount = contactRules.size,
                             onOpenContactRules = { showContactRules = true },
                             onExportBackup = { exportBackup.launch("call-announcer-backup.json") },
-                            onImportBackup = { importBackup.launch(arrayOf("application/json", "text/plain", "*/*")) }
+                            onImportBackup = { importBackup.launch(arrayOf("application/json", "text/plain", "*/*")) },
+                            onAppLanguageChange = viewModel::updateAppLanguage
                         )
                     )
 

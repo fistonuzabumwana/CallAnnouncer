@@ -2,6 +2,8 @@ package com.example.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.example.i18n.AppLanguage
+import com.example.i18n.I18n
 import com.example.util.AnnouncementLanguage
 import com.example.util.DeviceStorage
 import com.example.util.PairSpokenMode
@@ -55,13 +57,14 @@ data class AnnouncerSettings(
     /** Also read the message text, not just who sent it. */
     val readMessageText: Boolean = false,
     /** When the phone is unlocked after missed calls, say who called. */
-    val missedCallSummary: Boolean = false
+    val missedCallSummary: Boolean = false,
+    val appLanguage: AppLanguage = AppLanguage.SYSTEM
 ) {
     val hasAcceptedPrivacyPolicy: Boolean get() = acceptedPrivacyVersion >= PRIVACY_POLICY_VERSION
 
     companion object {
         /** Bump when the policy text changes materially so users are asked again. */
-        const val PRIVACY_POLICY_VERSION = 2
+        const val PRIVACY_POLICY_VERSION = 3
     }
 }
 
@@ -87,11 +90,12 @@ class AppSettings private constructor(context: Context) {
             prefs = DeviceStorage.prefs(context, PREFS_NAME) { migrated ->
                 synchronized(lock) {
                     prefs = migrated
-                    _settingsFlow.value = loadSettings()
+                    publish(loadSettings())
                 }
             }
             _settingsFlow = MutableStateFlow(loadSettings())
             settingsFlow = _settingsFlow.asStateFlow()
+            I18n.apply(_settingsFlow.value.appLanguage)
         }
     }
 
@@ -137,6 +141,7 @@ class AppSettings private constructor(context: Context) {
             announceMessages = prefs.getBoolean(KEY_ANNOUNCE_MESSAGES, false),
             readMessageText = prefs.getBoolean(KEY_READ_MESSAGE_TEXT, false),
             missedCallSummary = prefs.getBoolean(KEY_MISSED_SUMMARY, false),
+            appLanguage = AppLanguage.fromName(prefs.getString(KEY_APP_LANGUAGE, null)),
             isEnabled = isEnabled,
             prefixText = prefix,
             pairMode = pairMode,
@@ -193,16 +198,22 @@ class AppSettings private constructor(context: Context) {
             .putBoolean(KEY_ANNOUNCE_MESSAGES, updated.announceMessages)
             .putBoolean(KEY_READ_MESSAGE_TEXT, updated.readMessageText)
             .putBoolean(KEY_MISSED_SUMMARY, updated.missedCallSummary)
+            .putString(KEY_APP_LANGUAGE, updated.appLanguage.name)
             .apply()
 
-        _settingsFlow.value = updated
+        publish(updated)
+    }
+
+    private fun publish(settings: AnnouncerSettings) {
+        I18n.apply(settings.appLanguage)
+        _settingsFlow.value = settings
     }
 
     fun getSettings(): AnnouncerSettings = _settingsFlow.value
 
     /** Re-reads the stored values, e.g. after a backup was restored. */
     fun reload() = synchronized(lock) {
-        _settingsFlow.value = loadSettings()
+        publish(loadSettings())
     }
 
     companion object {
@@ -238,6 +249,7 @@ class AppSettings private constructor(context: Context) {
         private const val KEY_ANNOUNCE_MESSAGES = "announce_messages"
         private const val KEY_READ_MESSAGE_TEXT = "read_message_text"
         private const val KEY_MISSED_SUMMARY = "missed_call_summary"
+        private const val KEY_APP_LANGUAGE = "app_language"
 
         @Volatile
         private var INSTANCE: AppSettings? = null
