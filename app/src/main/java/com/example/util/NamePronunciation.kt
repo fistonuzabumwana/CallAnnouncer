@@ -36,7 +36,8 @@ object NamePronunciation {
         "umutoni", "umuhoza", "isimbi", "ganza", "shema", "cyiza", "manzi", "gatete", "mugabo", "sibomana",
         "nsabimana", "nzeyimana", "dusabe", "dukuze", "kagabo", "karangwa", "kayitesi", "mukeshimana",
         "nyiraneza", "uwineza", "umuhire", "hirwa", "gisa", "sangwa", "kalisa", "murenzi", "rwigema",
-        "byiringiro", "niyigena", "ndahiro", "nsanzimana", "twizeyimana", "uwamariya", "mukandayisenga"
+        "byiringiro", "niyigena", "ndahiro", "nsanzimana", "twizeyimana", "uwamariya", "mukandayisenga",
+        "cyusa", "cyubahiro", "cyizere", "shyaka", "shyirambere"
     )
 
     private val commonFrenchNames = setOf(
@@ -77,6 +78,18 @@ object NamePronunciation {
         val onsets = Regex("([^aeiou]*)[aeiou]").findAll(w).map { it.groupValues[1] }.toList()
         if (onsets.any { !validOnset.matches(it) }) return false
         return strongStart.containsMatchIn(w) || strongInside.containsMatchIn(w)
+    }
+
+    /**
+     * Rewrites Kinyarwanda spellings that Swahili writes differently, e.g. Cyusa → Chusa
+     * (Kinyarwanda "c"/"cy" is the "ch" sound; Swahili has no "cy" and would say "Kyusa").
+     */
+    fun toSwahiliSpelling(word: String): String {
+        var w = word
+        w = w.replace(Regex("(?i)cy")) { if (it.value[0].isUpperCase()) "Ch" else "ch" }
+        w = w.replace(Regex("(?i)c(?!h)")) { if (it.value[0].isUpperCase()) "Ch" else "ch" }
+        w = w.replace(Regex("(?i)(sh|j)y(?=[aeiou])")) { it.groupValues[1] }
+        return w
     }
 
     /** Spells a Kinyarwanda name so an English voice reads it correctly, e.g. Uwimana → Oo-wee-mah-nah. */
@@ -149,7 +162,7 @@ object NamePronunciation {
             when (originOf(word)) {
                 Origin.RWANDAN -> when {
                     main in NATIVE_BANTU_VOICES -> add(word, null)
-                    hasSwahili -> add(word, SWAHILI)
+                    hasSwahili -> add(toSwahiliSpelling(word), SWAHILI)
                     main == ENGLISH -> add(respellForEnglish(word), null)
                     else -> add(word, null)
                 }

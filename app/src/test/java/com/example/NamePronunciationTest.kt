@@ -37,6 +37,17 @@ class NamePronunciationTest {
         assertEquals("Moo-ghee-shah", NamePronunciation.respellForEnglish("Mugisha"))
         assertEquals("Chee-zah", NamePronunciation.respellForEnglish("Cyiza"))
         assertEquals("Nshee-mee-yee-mah-nah", NamePronunciation.respellForEnglish("Nshimiyimana"))
+        assertEquals("Choo-sah", NamePronunciation.respellForEnglish("Cyusa"))
+    }
+
+    @Test
+    fun adaptsKinyarwandaSpellingForTheSwahiliVoice() {
+        assertEquals("Chusa", NamePronunciation.toSwahiliSpelling("Cyusa"))
+        assertEquals("Chiza", NamePronunciation.toSwahiliSpelling("Cyiza"))
+        assertEquals("Shaka", NamePronunciation.toSwahiliSpelling("Shyaka"))
+        assertEquals("Uwimana", NamePronunciation.toSwahiliSpelling("Uwimana"))
+        assertEquals(listOf(SpeechSegment("Incoming call from"), SpeechSegment("Chusa", "sw")),
+            NamePronunciation.plan("Incoming call from Cyusa", "Cyusa", "en", setOf("en", "sw")))
     }
 
     @Test
