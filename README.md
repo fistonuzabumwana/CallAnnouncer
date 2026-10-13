@@ -12,7 +12,18 @@ It keeps working when the app is closed, swiped away from recent apps, or after 
 - **Respects the situation** — stays quiet when the phone is on silent/vibrate, when Do Not Disturb would silence the caller, or when you are already on another call.
 - **Fast repeat callers** — the spoken audio is cached, so frequent callers are announced sooner.
 - **Customizable** — announcement prefix ("Incoming call from…"), repeat count, delay before speaking, voice language, speed and pitch, and whether to announce contacts and/or unknown numbers.
-- **History** — a log of announced calls, with replay.
+- **Rwandan & French names** — Kinyarwanda names are spoken with the Swahili voice (or respelled for English), French names with the French voice. A contact's phonetic name from Contacts is used when saved.
+- **Announcements in Kinyarwanda, French or English** — *"Uguhamagara ni …"*, *"Appel de …"*, *"Incoming call from …"*.
+- **Network and spam hints** — unsaved Rwandan numbers can start with "an MTN number" / "an Airtel number"; numbers you marked as spam (or your phone blocked before) start with a warning.
+- **Per-contact rules** — fix how a name is pronounced, always announce someone (even in quiet hours), or never announce them.
+- **Quiet hours** — stay silent at night; the phone still rings.
+- **Stop speaking** — press a volume or power button, turn the phone face down, or shake it.
+- **Headphones and car** — announce on the speaker and headphones, only in headphones / the car, or not at all.
+- **Messages and missed calls** — optionally announce new WhatsApp, SMS, Telegram, Signal… messages, and say who you missed when you unlock the phone.
+- **Quick Settings tile and home-screen widget** — turn announcing on or off in one tap.
+- **App in Kinyarwanda, French or English** — follows the phone language or can be chosen in Settings → Appearance.
+- **Backup and restore** — save settings, contact pronunciations and spam numbers to a file and restore them on a new phone.
+- **History** — a log of announced calls, with replay, mark as spam and pronunciation fixes.
 
 ## Requirements
 
@@ -123,8 +134,9 @@ app/src/main/java/com/example/
 ├── receiver/   Phone state and boot receivers
 ├── tts/        Text-to-speech playback, audio cache, keep-alive track
 ├── util/       Setup checklist (ReadinessChecker), volume control, number matching, contact lookup, OEM auto-start screens
-├── data/       Settings and call history (Room)
-└── ui/         Jetpack Compose screens: Tester, Voice & Cadence, Log, Setup (with SetupFixer)
+├── data/       Settings, contact rules, backups and call history (Room)
+├── i18n/       Kinyarwanda and French screen texts
+└── ui/         Jetpack Compose screens: Home, Settings, History, Setup (with SetupFixer), contact rules, privacy policy
 ```
 
 ## Troubleshooting
