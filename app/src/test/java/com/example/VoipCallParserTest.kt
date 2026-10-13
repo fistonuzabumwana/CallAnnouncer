@@ -83,10 +83,10 @@ class VoipCallParserTest {
 
     @Test
     fun announcementMentionsTheApp() {
-        val base = AnnouncementBuilder.buildAnnouncement("Jean", null, "Incoming call from")
-        assertEquals("Incoming call from Jean, on WhatsApp",
-            AnnouncementBuilder.withCallingApp(base, "WhatsApp", isVideo = false).spokenText)
-        assertEquals("Incoming call from Jean, WhatsApp video call",
-            AnnouncementBuilder.withCallingApp(base, "WhatsApp", isVideo = true).spokenText)
+        fun build(isVideo: Boolean) = AnnouncementBuilder.buildAnnouncement(
+            "Jean", null, "Incoming call from", callingApp = "WhatsApp", isVideo = isVideo
+        )
+        assertEquals("Incoming call from Jean, on WhatsApp", build(isVideo = false).spokenText)
+        assertEquals("Incoming call from Jean, WhatsApp video call", build(isVideo = true).spokenText)
     }
 }

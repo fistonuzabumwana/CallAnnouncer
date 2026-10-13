@@ -52,4 +52,46 @@ object ContactLookupHelper {
             null
         }
     }
+
+    /**
+     * The phonetic name saved in Contacts ("Phonetic first/middle/last name"), which tells
+     * how the user wants the name pronounced. Null when none is saved.
+     */
+    fun lookupPhoneticName(context: Context, rawPhoneNumber: String?): String? {
+        if (rawPhoneNumber.isNullOrBlank()) return null
+        if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) return null
+
+        return try {
+            val lookupUri = Uri.withAppendedPath(
+                ContactsContract.PhoneLookup.CONTENT_FILTER_URI,
+                Uri.encode(rawPhoneNumber)
+            )
+            val contactId = context.contentResolver.query(
+                lookupUri, arrayOf(ContactsContract.PhoneLookup._ID), null, null, null
+            )?.use { if (it.moveToFirst()) it.getLong(0) else null } ?: return null
+
+            val structuredName = ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE
+            context.contentResolver.query(
+                ContactsContract.Data.CONTENT_URI,
+                arrayOf(
+                    ContactsContract.CommonDataKinds.StructuredName.PHONETIC_GIVEN_NAME,
+                    ContactsContract.CommonDataKinds.StructuredName.PHONETIC_MIDDLE_NAME,
+                    ContactsContract.CommonDataKinds.StructuredName.PHONETIC_FAMILY_NAME
+                ),
+                "${ContactsContract.Data.CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
+                arrayOf(contactId.toString(), structuredName),
+                null
+            )?.use { cursor ->
+                if (!cursor.moveToFirst()) return@use null
+                (0..2).mapNotNull { cursor.getString(it)?.trim()?.takeIf { part -> part.isNotEmpty() } }
+                    .joinToString(" ")
+                    .takeIf { it.isNotEmpty() }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to read phonetic name", e)
+            null
+        }
+    }
 }

@@ -21,9 +21,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Dialpad
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,6 +53,7 @@ import com.example.data.CallLogEntity
 import com.example.ui.components.IconTile
 import com.example.ui.components.SectionHeader
 import com.example.ui.components.Spacing
+import com.example.util.SpamChecker
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -58,7 +64,10 @@ fun HistoryScreen(
     callLogs: List<CallLogEntity>,
     onReplayCall: (CallLogEntity) -> Unit,
     onDeleteCall: (CallLogEntity) -> Unit,
-    onClearAll: () -> Unit
+    onClearAll: () -> Unit,
+    spamNumbers: Set<String> = emptySet(),
+    onEditContact: (CallLogEntity) -> Unit = {},
+    onSetSpam: (CallLogEntity, Boolean) -> Unit = { _, _ -> }
 ) {
     if (callLogs.isEmpty()) {
         EmptyHistory()
@@ -94,7 +103,10 @@ fun HistoryScreen(
                     isFirst = index == 0,
                     isLast = index == logs.lastIndex,
                     onReplay = { onReplayCall(log) },
-                    onDelete = { onDeleteCall(log) }
+                    onDelete = { onDeleteCall(log) },
+                    isSpam = SpamChecker.keyOf(log.rawPhoneNumber) in spamNumbers,
+                    onEditContact = { onEditContact(log) },
+                    onSetSpam = { onSetSpam(log, it) }
                 )
             }
         }
@@ -125,8 +137,13 @@ private fun CallLogRow(
     isFirst: Boolean,
     isLast: Boolean,
     onReplay: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    isSpam: Boolean,
+    onEditContact: () -> Unit,
+    onSetSpam: (Boolean) -> Unit
 ) {
+    val hasNumber = SpamChecker.keyOf(log.rawPhoneNumber) != null
+    var menuOpen by remember { mutableStateOf(false) }
     val corner = 24.dp
     val shape = RoundedCornerShape(
         topStart = if (isFirst) corner else 0.dp,
@@ -174,6 +191,13 @@ private fun CallLogRow(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    if (isSpam) {
+                        Text(
+                            text = "Marked as spam",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                     if (log.source != null) {
                         Text(
                             text = if (log.rawPhoneNumber == "Unknown") "${log.source} call" else "${log.source} call · ${log.rawPhoneNumber}",
@@ -195,12 +219,44 @@ private fun CallLogRow(
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        Icons.Outlined.DeleteOutline,
-                        contentDescription = "Delete",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Box {
+                    IconButton(onClick = { menuOpen = true }, modifier = Modifier.testTag("call_log_menu_${log.id}")) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = "More",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        if (hasNumber) {
+                            DropdownMenuItem(
+                                text = { Text("Pronunciation & rules") },
+                                leadingIcon = { Icon(Icons.Default.RecordVoiceOver, contentDescription = null) },
+                                onClick = {
+                                    menuOpen = false
+                                    onEditContact()
+                                }
+                            )
+                        }
+                        if (hasNumber && !log.isKnownContact) {
+                            DropdownMenuItem(
+                                text = { Text(if (isSpam) "Not spam" else "Mark as spam") },
+                                leadingIcon = { Icon(Icons.Default.ReportProblem, contentDescription = null) },
+                                onClick = {
+                                    menuOpen = false
+                                    onSetSpam(!isSpam)
+                                }
+                            )
+                        }
+                        DropdownMenuItem(
+                            text = { Text("Delete") },
+                            leadingIcon = { Icon(Icons.Outlined.DeleteOutline, contentDescription = null) },
+                            onClick = {
+                                menuOpen = false
+                                onDelete()
+                            }
+                        )
+                    }
                 }
             }
             if (!isLast) {

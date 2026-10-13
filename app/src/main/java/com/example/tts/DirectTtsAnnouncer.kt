@@ -1,7 +1,9 @@
 package com.example.tts
 
 import android.content.Context
+import android.media.AudioDeviceInfo
 import android.media.MediaPlayer
+import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.os.SystemClock
@@ -10,8 +12,10 @@ import android.speech.tts.UtteranceProgressListener
 import android.util.Log
 import com.example.data.AppSettings
 import com.example.util.AnnouncementVolumeController
+import com.example.util.AudioOutputs
 import com.example.util.DebugLog
 import com.example.util.DeviceStorage
+import com.example.util.AnnouncementResult
 import com.example.util.NamePronunciation
 import com.example.util.SpeechSegment
 import kotlinx.coroutines.CompletableDeferred
@@ -145,6 +149,11 @@ object DirectTtsAnnouncer : TextToSpeech.OnInitListener {
         skipWhenSilenced: Boolean = false,
         /** The caller's name inside [text], spoken with the voice that suits it (e.g. Swahili for Rwandan names). */
         name: String? = null,
+        /** A built announcement; its phrases, name and number are each read with a suitable voice. */
+        announcement: AnnouncementResult? = null,
+        /** Play only through connected headphones or car audio, at their normal level. */
+        headphonesOnly: Boolean = false,
+        stopOptions: StopOptions? = null,
         onFinish: (() -> Unit)? = null
     ): Job {
         initialize(context)
@@ -152,8 +161,8 @@ object DirectTtsAnnouncer : TextToSpeech.OnInitListener {
 
         val job = scope.launch(start = CoroutineStart.LAZY) {
             try {
-                announce(text, name, repeatCount, initialDelayMs, repeatDelayMs, rate, pitch,
-                    languageTag, duckRingtone, syncRingtoneVolume, skipWhenSilenced)
+                announce(text, name, announcement, repeatCount, initialDelayMs, repeatDelayMs, rate, pitch,
+                    languageTag, duckRingtone, syncRingtoneVolume, skipWhenSilenced, headphonesOnly, stopOptions)
             } finally {
                 // A replaced announcement must not release the wake lock of the one that replaced it
                 synchronized(this@DirectTtsAnnouncer) {
@@ -173,6 +182,7 @@ object DirectTtsAnnouncer : TextToSpeech.OnInitListener {
     private suspend fun announce(
         text: String,
         name: String?,
+        announcement: AnnouncementResult?,
         repeatCount: Int,
         initialDelayMs: Long,
         repeatDelayMs: Long,
@@ -181,7 +191,9 @@ object DirectTtsAnnouncer : TextToSpeech.OnInitListener {
         languageTag: String,
         duckRingtone: Boolean,
         syncRingtoneVolume: Boolean,
-        skipWhenSilenced: Boolean
+        skipWhenSilenced: Boolean,
+        headphonesOnly: Boolean,
+        stopOptions: StopOptions?
     ) {
         if (skipWhenSilenced && volumeController?.isRingerSilenced() == true) {
             DebugLog.d(TAG, "Phone is on silent/vibrate; skipping announcement")
@@ -210,7 +222,7 @@ object DirectTtsAnnouncer : TextToSpeech.OnInitListener {
         // Playing the audio from this process (instead of the TTS engine's) keeps the app
         // "playing audio", which stops OEM freezers like TECNO's Hiber from pausing it mid-speech.
         val startedAt = SystemClock.elapsedRealtime()
-        val segments = planSegments(text, name)
+        val segments = planSegments(text, name, announcement)
         val audioFile = obtainAnnouncementAudio(segments, rate, pitch, languageTag)
             ?: obtainAudioFile(text, rate, pitch)
         val engineText = segments.singleOrNull()?.takeIf { it.languageTag == null }?.text ?: text
@@ -221,38 +233,54 @@ object DirectTtsAnnouncer : TextToSpeech.OnInitListener {
             delay(remainingDelay)
         }
 
-        // 2. Raise the announcement above the ringtone level and lower the ringtone
+        // 2. Raise the announcement above the ringtone level and lower the ringtone.
+        // In headphones the level is left alone: a boost meant to beat a ringtone would hurt ears.
+        val output = if (headphonesOnly) appContext?.let { AudioOutputs.personalOutput(it) } else null
         volumeController?.begin(
             duckRingtone = duckRingtone,
-            louderThanRingtone = syncRingtoneVolume
+            louderThanRingtone = syncRingtoneVolume && output == null
         )
 
-        val loops = if (repeatCount <= 0) 1 else repeatCount
-        for (i in 0 until loops) {
-            _isSpeaking.value = true
-            if (audioFile != null) {
-                playFile(audioFile)
-            } else {
-                speakWithEngine(engineText)
-            }
+        val gestures = stopOptions?.takeIf { it.any }?.let { options ->
+            appContext?.let { StopGestures(it, options) { stop() }.apply { start() } }
+        }
+        try {
+            val loops = if (repeatCount <= 0) 1 else repeatCount
+            for (i in 0 until loops) {
+                _isSpeaking.value = true
+                if (audioFile != null) {
+                    playFile(audioFile, output)
+                } else {
+                    speakWithEngine(engineText)
+                }
 
-            if (i < loops - 1) {
-                delay(repeatDelayMs)
+                if (i < loops - 1) {
+                    delay(repeatDelayMs)
+                }
             }
+        } finally {
+            gestures?.stop()
         }
 
         // 3. After the announcement repetitions finish, restore ringtone and announcement volumes
         volumeController?.restore()
     }
 
-    private fun planSegments(text: String, name: String?): List<SpeechSegment> {
+    private fun planSegments(text: String, name: String?, announcement: AnnouncementResult?): List<SpeechSegment> {
         val engine = tts ?: return listOf(SpeechSegment(text))
         val context = appContext ?: return listOf(SpeechSegment(text))
-        if (!AppSettings.getInstance(context).getSettings().smartNamePronunciation) return listOf(SpeechSegment(text))
+        val smartNames = AppSettings.getInstance(context).getSettings().smartNamePronunciation
         val mainLanguage = try { engine.voice?.locale?.language } catch (_: Exception) { null }
             ?: Locale.getDefault().language
         val installed = _availableLanguages.value.map { it.language }.toSet()
-        return NamePronunciation.plan(text, name, mainLanguage, installed).also {
+        val plan = when {
+            announcement != null && announcement.parts.isNotEmpty() && announcement.spokenText == text ->
+                NamePronunciation.planParts(announcement.parts, mainLanguage, announcement.language.languageTag,
+                    installed, smartNames)
+            smartNames -> NamePronunciation.plan(text, name, mainLanguage, installed)
+            else -> return listOf(SpeechSegment(text))
+        }
+        return plan.also {
             if (it.size > 1 || it.first().text != text) DebugLog.d(TAG, "Name pronunciation plan: $it")
         }
     }
@@ -394,7 +422,7 @@ object DirectTtsAnnouncer : TextToSpeech.OnInitListener {
         emptyList()
     }
 
-    private suspend fun playFile(file: File) = suspendCancellableCoroutine { cont ->
+    private suspend fun playFile(file: File, output: AudioDeviceInfo? = null) = suspendCancellableCoroutine { cont ->
         val player = MediaPlayer()
         currentPlayer = player
         val finish = {
@@ -411,6 +439,7 @@ object DirectTtsAnnouncer : TextToSpeech.OnInitListener {
                 true
             }
             player.prepare()
+            if (output != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) player.setPreferredDevice(output)
             player.start()
             DebugLog.d(TAG, "Playing announcement (${player.duration}ms)")
         } catch (e: Exception) {

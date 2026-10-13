@@ -40,7 +40,17 @@ import com.example.ui.screens.HistoryScreen
 import com.example.ui.screens.PrivacyPolicyScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.SetupScreen
+import com.example.ui.screens.ContactRuleDialog
+import com.example.ui.screens.ContactRuleDraft
+import com.example.ui.screens.ContactRulesScreen
+import com.example.ui.screens.MoreSettingsActions
+import com.example.data.ContactRule
 import com.example.util.SetupItem
+import com.example.util.SpamChecker
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.remember
 
 enum class ScreenTab(
     val label: String,
@@ -87,6 +97,31 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
         PrivacyPolicyScreen(onClose = { showPrivacyPolicy = false })
         return
     }
+
+    val contactRules by viewModel.contactRules.collectAsState()
+    val spamNumbers by viewModel.spamNumbers.collectAsState()
+    var showContactRules by rememberSaveable { mutableStateOf(false) }
+    if (showContactRules) {
+        BackHandler { showContactRules = false }
+        ContactRulesScreen(
+            rules = contactRules,
+            onBack = { showContactRules = false },
+            onSave = { viewModel.saveContactRule(it.number, it.displayName, it.spokenName, it.rule) },
+            onRemove = { viewModel.removeContactRule(it) },
+            onPreview = { name, spoken -> viewModel.previewPronunciation(name, spoken) }
+        )
+        return
+    }
+
+    val context = LocalContext.current
+    val showMessage: (String) -> Unit = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
+    val exportBackup = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) viewModel.exportBackup(uri, showMessage)
+    }
+    val importBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) viewModel.importBackup(uri, showMessage)
+    }
+    var editingContact by remember { mutableStateOf<ContactRuleDraft?>(null) }
 
     val livePreview = viewModel.getLivePreview()
     val setupFixer = rememberSetupFixer(viewModel)
@@ -186,14 +221,42 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
                         onToggleOtherApps = { viewModel.toggleAnnounceOtherApps() },
                         notificationAccessMissing = internetCallsCheck?.passed == false,
                         onAllowNotificationAccess = { internetCallsCheck?.let { setupFixer.fix(it) } },
-                        onToggleSmartNames = { viewModel.toggleSmartNamePronunciation() }
+                        onToggleSmartNames = { viewModel.toggleSmartNamePronunciation() },
+                        more = MoreSettingsActions(
+                            onAnnouncementLanguageChange = { viewModel.updateAnnouncementLanguage(it) },
+                            onToggleSayNetwork = { viewModel.toggleSayNetwork() },
+                            onToggleSpamWarning = { viewModel.toggleSpamWarning() },
+                            onQuietHoursChange = { on, start, end -> viewModel.updateQuietHours(on, start, end) },
+                            onHeadphoneModeChange = { viewModel.updateHeadphoneMode(it) },
+                            onToggleStopWhenSilenced = { viewModel.toggleStopWhenSilenced() },
+                            onToggleFlipToStop = { viewModel.toggleFlipToStop() },
+                            onToggleShakeToStop = { viewModel.toggleShakeToStop() },
+                            onToggleMessages = { viewModel.toggleAnnounceMessages() },
+                            onToggleReadMessageText = { viewModel.toggleReadMessageText() },
+                            onToggleMissedSummary = { viewModel.toggleMissedCallSummary() },
+                            contactRuleCount = contactRules.size,
+                            onOpenContactRules = { showContactRules = true },
+                            onExportBackup = { exportBackup.launch("call-announcer-backup.json") },
+                            onImportBackup = { importBackup.launch(arrayOf("application/json", "text/plain", "*/*")) }
+                        )
                     )
 
                     ScreenTab.HISTORY -> HistoryScreen(
                         callLogs = callLogs,
                         onReplayCall = { viewModel.replayCallLog(it) },
                         onDeleteCall = { viewModel.deleteCallLog(it) },
-                        onClearAll = { viewModel.clearAllLogs() }
+                        onClearAll = { viewModel.clearAllLogs() },
+                        spamNumbers = spamNumbers,
+                        onEditContact = { log ->
+                            val existing = contactRules.firstOrNull { it.key == SpamChecker.keyOf(log.rawPhoneNumber) }
+                            editingContact = ContactRuleDraft(
+                                number = log.rawPhoneNumber,
+                                displayName = log.contactName ?: log.formattedDisplay,
+                                spokenName = existing?.spokenName.orEmpty(),
+                                rule = existing?.rule ?: ContactRule.NORMAL
+                            )
+                        },
+                        onSetSpam = { log, marked -> viewModel.setSpam(log.rawPhoneNumber, marked) }
                     )
 
                     ScreenTab.SETUP -> SetupScreen(
@@ -213,6 +276,23 @@ fun CallAnnouncerApp(viewModel: CallAnnouncerViewModel) {
             isSpeaking = isSpeaking,
             onAnswer = { viewModel.answerSimulatedCall() },
             onDecline = { viewModel.stopTts() }
+        )
+    }
+
+    editingContact?.let { draft ->
+        ContactRuleDialog(
+            draft = draft,
+            canRemove = contactRules.any { it.key == SpamChecker.keyOf(draft.number) },
+            onDismiss = { editingContact = null },
+            onSave = {
+                viewModel.saveContactRule(it.number, it.displayName, it.spokenName, it.rule)
+                editingContact = null
+            },
+            onRemove = {
+                SpamChecker.keyOf(draft.number)?.let { viewModel.removeContactRule(it) }
+                editingContact = null
+            },
+            onPreview = { name, spoken -> viewModel.previewPronunciation(name, spoken) }
         )
     }
 }

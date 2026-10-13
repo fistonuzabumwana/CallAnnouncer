@@ -126,7 +126,8 @@ object ReadinessChecker {
             isPowerSaveMode = powerManager?.isPowerSaveMode == true,
             isRingerSilenced = AnnouncementVolumeController.getInstance(app).isRingerSilenced(),
             lastBackgroundAnnouncementAt = SetupState.lastBackgroundAnnouncementAt(app),
-            internetCallsWanted = AppSettings.getInstance(app).getSettings().let { it.announceWhatsApp || it.announceOtherApps },
+            internetCallsWanted = AppSettings.getInstance(app).getSettings()
+                .let { it.announceWhatsApp || it.announceOtherApps || it.announceMessages },
             hasNotificationAccess = VoipCallListenerService.isAccessGranted(app)
         )
     }
@@ -247,7 +248,7 @@ object ReadinessChecker {
                             "Calls from WhatsApp, Telegram, Signal and similar apps are announced too."
                         } else {
                             "Allow notification access so calls from WhatsApp, Telegram, Signal and similar apps are announced. " +
-                                "Only their incoming-call notifications are read." +
+                                "Only call notifications (and messages, if you turn that on) are read." +
                                 if (f.sdkInt >= Build.VERSION_CODES.TIRAMISU) {
                                     " If Android says \"Restricted setting\", open App info → ⋮ → Allow restricted settings, then try again."
                                 } else ""

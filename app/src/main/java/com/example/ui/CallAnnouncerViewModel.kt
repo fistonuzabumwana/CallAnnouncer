@@ -4,24 +4,35 @@ import android.app.Application
 import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.AnnouncerSettings
 import com.example.data.AppDatabase
 import com.example.data.AppSettings
+import com.example.data.BackupManager
 import com.example.data.CallLogEntity
+import com.example.data.ContactPreference
+import com.example.data.ContactPreferences
+import com.example.data.ContactRule
+import com.example.data.HeadphoneMode
 import com.example.data.ThemeMode
+import com.example.service.AnnouncerSwitch
 import com.example.service.CallAnnouncerService
 import com.example.tts.DirectTtsAnnouncer
 import com.example.util.AnnouncementBuilder
+import com.example.util.AnnouncementLanguage
 import com.example.util.AnnouncementResult
+import com.example.util.SpamChecker
 import com.example.util.PairSpokenMode
 import com.example.util.ReadinessChecker
 import com.example.util.ReadinessReport
 import com.example.util.SetupState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.SharingStarted
@@ -59,6 +70,13 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
     val readiness: StateFlow<ReadinessReport> = _readiness.asStateFlow()
 
     private var simulationJob: Job? = null
+
+    private val contactPreferences = ContactPreferences.getInstance(application)
+    val contactRules: StateFlow<List<ContactPreference>> = contactPreferences.all
+
+    private val _spamNumbers = MutableStateFlow(SpamChecker.markedNumbers(application))
+    /** Last digits of numbers the user marked as spam. */
+    val spamNumbers: StateFlow<Set<String>> = _spamNumbers.asStateFlow()
 
     init {
         DirectTtsAnnouncer.initialize(application)
@@ -104,7 +122,7 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
     fun turnOnAnnouncer() {
         val context = getApplication<Application>()
         if (!settings.value.isEnabled) {
-            appSettings.updateSettings { it.copy(isEnabled = true) }
+            AnnouncerSwitch.setEnabled(context, true)
         }
         CallAnnouncerService.start(context)
         viewModelScope.launch {
@@ -135,24 +153,22 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
         prefix: String = settings.value.prefixText,
         pairMode: PairSpokenMode = settings.value.pairMode
     ): AnnouncementResult {
+        val s = settings.value
+        val contactName = name.ifBlank { null }
         return AnnouncementBuilder.buildAnnouncement(
-            contactName = name.ifBlank { null },
+            contactName = contactName,
             phoneNumber = number.ifBlank { null },
             prefix = prefix,
-            pairMode = pairMode
+            pairMode = pairMode,
+            language = s.announcementLanguage,
+            sayNetwork = s.sayNetwork,
+            possibleSpam = s.spamWarning && contactName == null && SpamChecker.keyOf(number) in _spamNumbers.value,
+            spokenName = contactPreferences.find(number)?.spokenName
         )
     }
 
     fun toggleMasterEnabled() {
-        val nextState = !settings.value.isEnabled
-        appSettings.updateSettings { it.copy(isEnabled = nextState) }
-        val context = getApplication<Application>()
-        if (nextState) {
-            CallAnnouncerService.start(context)
-        } else {
-            CallAnnouncerService.stop(context)
-            DirectTtsAnnouncer.stop()
-        }
+        AnnouncerSwitch.setEnabled(getApplication(), !settings.value.isEnabled)
         viewModelScope.launch {
             delay(1000)
             refreshReadiness()
@@ -231,7 +247,8 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
             languageTag = s.voiceLanguage,
             duckRingtone = false,
             syncRingtoneVolume = s.syncRingtoneVolume,
-            name = preview.callerIdentifier.takeIf { preview.isKnownContact }
+            name = preview.callerIdentifier.takeIf { preview.isKnownContact },
+            announcement = preview
         )
     }
 
@@ -249,7 +266,8 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
             languageTag = s.voiceLanguage,
             duckRingtone = s.duckRingtone,
             syncRingtoneVolume = s.syncRingtoneVolume,
-            name = preview.callerIdentifier.takeIf { preview.isKnownContact }
+            name = preview.callerIdentifier.takeIf { preview.isKnownContact },
+            announcement = preview
         )
     }
 
@@ -288,6 +306,7 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
                 duckRingtone = s.duckRingtone,
                 syncRingtoneVolume = s.syncRingtoneVolume,
                 name = preview.callerIdentifier.takeIf { preview.isKnownContact },
+                announcement = preview,
                 onFinish = {
                     _isSimulatingRinging.value = false
                 }
@@ -325,6 +344,96 @@ class CallAnnouncerViewModel(application: Application) : AndroidViewModel(applic
 
     fun toggleSmartNamePronunciation() {
         appSettings.updateSettings { it.copy(smartNamePronunciation = !it.smartNamePronunciation) }
+    }
+
+    /** Switches the fixed words; a prefix the user never customised follows the language. */
+    fun updateAnnouncementLanguage(language: AnnouncementLanguage) {
+        appSettings.updateSettings {
+            val prefix = it.prefixText.trim()
+            val keepCustomPrefix = prefix.isNotEmpty() && prefix !in AnnouncementLanguage.ALL_PREFIXES
+            it.copy(
+                announcementLanguage = language,
+                prefixText = if (keepCustomPrefix) it.prefixText else language.defaultPrefix
+            )
+        }
+    }
+
+    fun toggleSayNetwork() = appSettings.updateSettings { it.copy(sayNetwork = !it.sayNetwork) }
+
+    fun toggleSpamWarning() = appSettings.updateSettings { it.copy(spamWarning = !it.spamWarning) }
+
+    fun updateQuietHours(enabled: Boolean, startMinutes: Int, endMinutes: Int) = appSettings.updateSettings {
+        it.copy(quietHoursEnabled = enabled, quietStartMinutes = startMinutes, quietEndMinutes = endMinutes)
+    }
+
+    fun toggleStopWhenSilenced() = appSettings.updateSettings { it.copy(stopWhenSilenced = !it.stopWhenSilenced) }
+
+    fun toggleFlipToStop() = appSettings.updateSettings { it.copy(flipToStop = !it.flipToStop) }
+
+    fun toggleShakeToStop() = appSettings.updateSettings { it.copy(shakeToStop = !it.shakeToStop) }
+
+    fun updateHeadphoneMode(mode: HeadphoneMode) = appSettings.updateSettings { it.copy(headphoneMode = mode) }
+
+    fun toggleAnnounceMessages() {
+        appSettings.updateSettings { it.copy(announceMessages = !it.announceMessages) }
+        refreshReadiness()
+    }
+
+    fun toggleReadMessageText() = appSettings.updateSettings { it.copy(readMessageText = !it.readMessageText) }
+
+    fun toggleMissedCallSummary() = appSettings.updateSettings { it.copy(missedCallSummary = !it.missedCallSummary) }
+
+    fun saveContactRule(number: String, displayName: String, spokenName: String?, rule: ContactRule) {
+        contactPreferences.save(number, displayName, spokenName, rule)
+    }
+
+    fun removeContactRule(key: String) = contactPreferences.remove(key)
+
+    /** Speaks "Incoming call from …" with a pronunciation the user is trying out. */
+    fun previewPronunciation(displayName: String, spokenName: String?) {
+        val s = settings.value
+        val preview = AnnouncementBuilder.buildAnnouncement(
+            contactName = displayName,
+            phoneNumber = null,
+            prefix = s.prefixText,
+            language = s.announcementLanguage,
+            spokenName = spokenName
+        )
+        DirectTtsAnnouncer.speak(
+            context = getApplication(),
+            text = preview.spokenText,
+            repeatCount = 1,
+            initialDelayMs = 0L,
+            rate = s.speechRate,
+            pitch = s.speechPitch,
+            languageTag = s.voiceLanguage,
+            duckRingtone = false,
+            announcement = preview
+        )
+    }
+
+    /** Writes the backup on a background thread; [onResult] gets a message to show. */
+    fun exportBackup(uri: Uri, onResult: (String) -> Unit) = viewModelScope.launch {
+        val message = withContext(Dispatchers.IO) {
+            runCatching { BackupManager.export(getApplication(), uri) }
+                .fold({ "Backup saved" }, { "Backup failed: ${it.message}" })
+        }
+        onResult(message)
+    }
+
+    fun importBackup(uri: Uri, onResult: (String) -> Unit) = viewModelScope.launch {
+        val message = withContext(Dispatchers.IO) {
+            runCatching { BackupManager.import(getApplication(), uri) }
+                .fold({ "Settings restored" }, { "Restore failed: ${it.message}" })
+        }
+        _spamNumbers.value = SpamChecker.markedNumbers(getApplication())
+        refreshReadiness()
+        onResult(message)
+    }
+
+    fun setSpam(number: String, marked: Boolean) {
+        SpamChecker.setMarked(getApplication(), number, marked)
+        _spamNumbers.value = SpamChecker.markedNumbers(getApplication())
     }
 
     fun deleteCallLog(callLog: CallLogEntity) {

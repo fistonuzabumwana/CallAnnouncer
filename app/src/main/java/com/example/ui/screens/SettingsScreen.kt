@@ -111,7 +111,8 @@ fun SettingsScreen(
     onToggleOtherApps: () -> Unit,
     notificationAccessMissing: Boolean,
     onAllowNotificationAccess: () -> Unit,
-    onToggleSmartNames: () -> Unit
+    onToggleSmartNames: () -> Unit,
+    more: MoreSettingsActions
 ) {
     ScreenColumn {
         Section(title = "Voice") {
@@ -151,6 +152,7 @@ fun SettingsScreen(
         }
 
         Section(title = "What's said") {
+            AnnouncementLanguageRow(settings.announcementLanguage, more.onAnnouncementLanguageChange)
             Column(modifier = Modifier.padding(Spacing.lg)) {
                 OutlinedTextField(
                     value = settings.prefixText,
@@ -167,7 +169,7 @@ fun SettingsScreen(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
-                    listOf("Incoming call from", "Call from", "Call alert:").forEach { phrase ->
+                    settings.announcementLanguage.prefixSuggestions.forEach { phrase ->
                         SuggestionChip(onClick = { onPrefixChange(phrase) }, label = { Text(phrase) })
                     }
                 }
@@ -199,6 +201,8 @@ fun SettingsScreen(
                 }
             }
             Spacer(Modifier.height(Spacing.sm))
+            GroupDivider()
+            CallerDetailsRows(settings, more)
             GroupDivider()
 
             Column(modifier = Modifier.padding(Spacing.lg)) {
@@ -266,7 +270,12 @@ fun SettingsScreen(
                 checked = settings.announceUnknowns,
                 onCheckedChange = { onToggleUnknowns() }
             )
+            GroupDivider()
+            ContactRulesRow(more)
         }
+
+        QuietSection(settings, more)
+        StopSection(settings, more)
 
         Section(title = "Calls from apps") {
             SwitchRow(
@@ -301,6 +310,8 @@ fun SettingsScreen(
             }
         }
 
+        MessagesSection(settings, more, notificationAccessMissing, onAllowNotificationAccess)
+
         Section(title = "Appearance") {
             Column(modifier = Modifier.padding(Spacing.lg)) {
                 Text("Theme", style = MaterialTheme.typography.titleSmall)
@@ -325,6 +336,8 @@ fun SettingsScreen(
                 }
             }
         }
+
+        BackupSection(more)
 
         Section(title = "About") {
             ListRow(

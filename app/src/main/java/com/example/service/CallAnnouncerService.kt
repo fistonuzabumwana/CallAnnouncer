@@ -5,8 +5,10 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
@@ -16,6 +18,7 @@ import android.telephony.TelephonyManager
 import android.util.Log
 import com.example.util.DebugLog
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.example.MainActivity
 import com.example.R
 import com.example.data.AppSettings
@@ -46,6 +49,23 @@ class CallAnnouncerService : Service() {
         startForegroundServiceWithNotification(idleStatusText())
 
         registerTelephonyListeners()
+        // USER_PRESENT is not delivered to manifest receivers, so it is only heard while this service runs
+        ContextCompat.registerReceiver(
+            this, userPresentReceiver, IntentFilter(Intent.ACTION_USER_PRESENT), ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+    }
+
+    private val userPresentReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val pending = goAsync()
+            Thread {
+                try {
+                    MissedCallSummary.onUserPresent(applicationContext)
+                } finally {
+                    pending.finish()
+                }
+            }.start()
+        }
     }
 
     private fun registerTelephonyListeners() {
@@ -93,10 +113,10 @@ class CallAnnouncerService : Service() {
                 return START_NOT_STICKY
             }
             ACTION_TOGGLE_ENABLED -> {
-                val current = appSettings.getSettings()
-                appSettings.updateSettings { it.copy(isEnabled = !current.isEnabled) }
-                val statusText = if (!current.isEnabled) "Announcer Active" else "Announcer Paused"
-                updateNotification(statusText)
+                val enable = !appSettings.getSettings().isEnabled
+                appSettings.updateSettings { it.copy(isEnabled = enable) }
+                AnnouncerSwitch.refreshControls(this)
+                updateNotification(if (enable) "Announcer Active" else "Announcer Paused")
             }
             ACTION_INCOMING_CALL -> {
                 if (callState != -1) {
@@ -230,6 +250,10 @@ class CallAnnouncerService : Service() {
         isServiceRunning = false
         instance = null
 
+        try {
+            unregisterReceiver(userPresentReceiver)
+        } catch (_: IllegalArgumentException) {
+        }
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && telephonyCallback != null) {
                 telephonyManager?.unregisterTelephonyCallback(telephonyCallback!!)

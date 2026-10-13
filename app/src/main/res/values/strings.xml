@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Call Announcer</string>
+    <string name="widget_description">Shows whether calls are announced. Tap to turn on or off.</string>
+    <string name="tile_label">Call Announcer</string>
 </resources>

@@ -7,14 +7,23 @@ import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
+import com.example.data.AnnouncerSettings
 import com.example.data.AppDatabase
 import com.example.data.AppSettings
 import com.example.data.CallLogEntity
+import com.example.data.ContactPreferences
+import com.example.data.ContactRule
+import com.example.data.HeadphoneMode
 import com.example.tts.AudioKeepAlive
 import com.example.tts.DirectTtsAnnouncer
+import com.example.tts.StopOptions
 import com.example.util.AnnouncementBuilder
+import com.example.util.AnnouncementResult
 import com.example.util.AnnouncementVolumeController
+import com.example.util.AudioOutputs
 import com.example.util.ContactLookupHelper
+import com.example.util.QuietHours
+import com.example.util.SpamChecker
 import com.example.util.DebugLog
 import com.example.util.DeviceStorage
 import com.example.util.IncomingVoipCall
@@ -179,22 +188,25 @@ object IncomingCallHandler {
         // Unsaved callers often show as a number; look it up like a regular call
         val number = call.caller?.takeIf { VoipCallParser.looksLikePhoneNumber(it) }
         val contactName = if (number != null) ContactLookupHelper.lookupContactName(context, number) else call.caller
-        val base = AnnouncementBuilder.buildAnnouncement(
+        val decision = decide(context, settings, number, contactName,
+            isKnownContact = contactName != null && !call.isUnsavedProfile) ?: return
+        val announcement = AnnouncementBuilder.buildAnnouncement(
             contactName = contactName,
             phoneNumber = number,
             prefix = settings.prefixText,
-            pairMode = settings.pairMode
+            pairMode = settings.pairMode,
+            language = settings.announcementLanguage,
+            sayNetwork = settings.sayNetwork,
+            possibleSpam = decision.possibleSpam,
+            callingApp = call.app.label,
+            isVideo = call.isVideo,
+            spokenName = decision.spokenName
         )
-        val announcement = AnnouncementBuilder.withCallingApp(base, call.app.label, call.isVideo)
-        val isKnownContact = base.isKnownContact && !call.isUnsavedProfile
-
-        if (isKnownContact && !settings.announceContacts) return
-        if (!isKnownContact && !settings.announceUnknowns) return
 
         yield()
         val source = if (call.isVideo) "${call.app.label} video" else call.app.label
         saveToHistory(context, number, contactName, announcement.callerIdentifier,
-            announcement.spokenText, isKnownContact, settings.repeatCount, source)
+            announcement.spokenText, decision.isKnownContact, settings.repeatCount, source)
 
         val audioManager = context.getSystemService(AudioManager::class.java)
         if (audioManager?.mode == AudioManager.MODE_IN_CALL) {
@@ -205,9 +217,81 @@ object IncomingCallHandler {
             DebugLog.d(TAG, "Do Not Disturb silences this ${call.app.label} call")
             return
         }
+        if (!decision.mayPlayNow(context, settings)) return
 
         yield()
         DebugLog.d(TAG, "Announcing: ${announcement.spokenText} (audio mode ${audioManager?.mode})")
+        // Internet calling apps may pause their own ringtone for the announcement, which must not count as silencing
+        speak(context, settings, announcement, contactName, stopWhenSilenced = false)
+    }
+
+    /** Who is calling and how they should be announced; null when they must not be announced. */
+    private class Decision(
+        val isKnownContact: Boolean,
+        val isVip: Boolean,
+        val possibleSpam: Boolean,
+        val spokenName: String?
+    ) {
+        /** Quiet hours and headphone rules, checked after the call is saved to history. */
+        fun mayPlayNow(context: Context, settings: AnnouncerSettings): Boolean {
+            if (!isVip && settings.quietHoursEnabled &&
+                QuietHours.isQuietNow(settings.quietStartMinutes, settings.quietEndMinutes)
+            ) {
+                DebugLog.d(TAG, "Quiet hours; staying silent")
+                return false
+            }
+            if (settings.headphoneMode == HeadphoneMode.SILENT && AudioOutputs.personalOutput(context) != null) {
+                DebugLog.d(TAG, "Headphones connected; announcing is off for headphones")
+                return false
+            }
+            return true
+        }
+    }
+
+    private fun decide(
+        context: Context,
+        settings: AnnouncerSettings,
+        number: String?,
+        contactName: String?,
+        isKnownContact: Boolean
+    ): Decision? {
+        val preference = ContactPreferences.getInstance(context).find(number)
+        when (preference?.rule) {
+            ContactRule.NEVER -> {
+                DebugLog.d(TAG, "Caller is set to never be announced")
+                return null
+            }
+            ContactRule.VIP -> Unit
+            else -> {
+                if (isKnownContact && !settings.announceContacts) {
+                    DebugLog.d(TAG, "Known contact announcements disabled")
+                    return null
+                }
+                if (!isKnownContact && !settings.announceUnknowns) {
+                    DebugLog.d(TAG, "Unknown caller announcements disabled")
+                    return null
+                }
+            }
+        }
+        val spokenName = preference?.spokenName
+            ?: if (contactName != null && number != null) ContactLookupHelper.lookupPhoneticName(context, number) else null
+        return Decision(
+            isKnownContact = isKnownContact,
+            isVip = preference?.rule == ContactRule.VIP,
+            possibleSpam = settings.spamWarning && !isKnownContact && SpamChecker.isLikelySpam(context, number),
+            spokenName = spokenName
+        )
+    }
+
+    private suspend fun speak(
+        context: Context,
+        settings: AnnouncerSettings,
+        announcement: AnnouncementResult,
+        contactName: String?,
+        stopWhenSilenced: Boolean
+    ) {
+        val headphonesOnly = settings.headphoneMode == HeadphoneMode.HEADPHONES_ONLY &&
+            AudioOutputs.personalOutput(context) != null
         DirectTtsAnnouncer.speak(
             context = context,
             text = announcement.spokenText,
@@ -220,7 +304,14 @@ object IncomingCallHandler {
             duckRingtone = settings.duckRingtone,
             syncRingtoneVolume = settings.syncRingtoneVolume,
             skipWhenSilenced = true,
-            name = contactName
+            name = contactName,
+            announcement = announcement,
+            headphonesOnly = headphonesOnly,
+            stopOptions = StopOptions(
+                stopWhenSilenced = stopWhenSilenced && settings.stopWhenSilenced,
+                flipToStop = settings.flipToStop,
+                shakeToStop = settings.shakeToStop
+            )
         ).join()
     }
 
@@ -241,26 +332,24 @@ object IncomingCallHandler {
 
         val incomingNumber = PhoneCallNumberResolver.resolveIncomingNumber(context, number)
         val contactName = ContactLookupHelper.lookupContactName(context, incomingNumber)
+        val decision = decide(context, settings, incomingNumber, contactName, isKnownContact = contactName != null)
+            ?: return
         val announcement = AnnouncementBuilder.buildAnnouncement(
             contactName = contactName,
             phoneNumber = incomingNumber,
             prefix = settings.prefixText,
-            pairMode = settings.pairMode
+            pairMode = settings.pairMode,
+            language = settings.announcementLanguage,
+            sayNetwork = settings.sayNetwork,
+            possibleSpam = decision.possibleSpam,
+            spokenName = decision.spokenName
         )
-
-        if (announcement.isKnownContact && !settings.announceContacts) {
-            DebugLog.d(TAG, "Known contact announcements disabled")
-            return
-        }
-        if (!announcement.isKnownContact && !settings.announceUnknowns) {
-            DebugLog.d(TAG, "Unknown caller announcements disabled")
-            return
-        }
 
         // The call may have been answered or rejected while looking up the contact
         yield()
         saveToHistory(context, incomingNumber, contactName, announcement.callerIdentifier,
             announcement.spokenText, announcement.isKnownContact, settings.repeatCount)
+        if (!decision.mayPlayNow(context, settings)) return
 
         if (isAnotherCallActive(context)) {
             DebugLog.d(TAG, "Already in a call; not speaking over it")
@@ -281,20 +370,7 @@ object IncomingCallHandler {
             SetupState.recordBackgroundAnnouncement(context)
         }
 
-        DirectTtsAnnouncer.speak(
-            context = context,
-            text = announcement.spokenText,
-            repeatCount = settings.repeatCount,
-            initialDelayMs = settings.initialDelayMs,
-            repeatDelayMs = settings.repeatDelayMs,
-            rate = settings.speechRate,
-            pitch = settings.speechPitch,
-            languageTag = settings.voiceLanguage,
-            duckRingtone = settings.duckRingtone,
-            syncRingtoneVolume = settings.syncRingtoneVolume,
-            skipWhenSilenced = true,
-            name = contactName
-        ).join()
+        speak(context, settings, announcement, contactName, stopWhenSilenced = true)
     }
 
     private suspend fun saveToHistory(

@@ -142,36 +142,83 @@ object NamePronunciation {
         val start = text.indexOf(spokenName)
         if (start < 0) return plain
 
-        val main = mainLanguage.lowercase()
-        val hasSwahili = SWAHILI in installedLanguages
-        val hasFrench = FRENCH in installedLanguages
-
+        val voices = Voices(mainLanguage.lowercase(), installedLanguages)
         val segments = mutableListOf<SpeechSegment>()
-        fun add(part: String, language: String?) {
-            if (part.isBlank()) return
-            val last = segments.lastOrNull()
-            if (last != null && last.languageTag == language) {
-                segments[segments.lastIndex] = last.copy(text = "${last.text.trimEnd()} ${part.trim()}")
-            } else {
-                segments += SpeechSegment(part.trim(), language)
-            }
-        }
-
-        add(text.substring(0, start), null)
-        spokenName.split(Regex("\\s+")).forEach { word ->
-            when (originOf(word)) {
-                Origin.RWANDAN -> when {
-                    main in NATIVE_BANTU_VOICES -> add(word, null)
-                    hasSwahili -> add(toSwahiliSpelling(word), SWAHILI)
-                    main == ENGLISH -> add(respellForEnglish(word), null)
-                    else -> add(word, null)
-                }
-                Origin.FRENCH -> add(word, if (main != FRENCH && hasFrench) FRENCH else null)
-                Origin.OTHER -> add(word, null)
-            }
-        }
-        add(text.substring(start + spokenName.length), null)
+        segments.add(text.substring(0, start), null)
+        spokenName.split(Regex("\\s+")).forEach { word -> segments.addNameWord(word, voices) }
+        segments.add(text.substring(start + spokenName.length), null)
         return segments.ifEmpty { plain }
+    }
+
+    /**
+     * Plans voices for a built announcement: the fixed phrases in [phraseLanguage]
+     * (Kinyarwanda phrases use a Swahili voice or English respelling, like names),
+     * each name word by its origin, and numbers in the main voice.
+     */
+    fun planParts(
+        parts: List<SpokenPart>,
+        mainLanguage: String,
+        phraseLanguage: String,
+        installedLanguages: Set<String>,
+        smartNames: Boolean = true
+    ): List<SpeechSegment> {
+        val voices = Voices(mainLanguage.lowercase(), installedLanguages)
+        val segments = mutableListOf<SpeechSegment>()
+        parts.forEach { part ->
+            when (part.kind) {
+                SpokenPart.Kind.NUMBER, SpokenPart.Kind.SPELLED -> segments.add(part.text, null)
+                SpokenPart.Kind.NAME ->
+                    if (smartNames) part.text.split(Regex("\\s+")).forEach { segments.addNameWord(it, voices) }
+                    else segments.add(part.text, null)
+                SpokenPart.Kind.PHRASE -> when (phraseLanguage.lowercase()) {
+                    voices.main -> segments.add(part.text, null)
+                    "rw" -> part.text.split(Regex("\\s+")).forEach { segments.addKinyarwandaWord(it, voices) }
+                    else -> segments.add(part.text, phraseLanguage.lowercase().takeIf { it in installedLanguages })
+                }
+            }
+        }
+        return segments.ifEmpty { listOf(SpeechSegment(AnnouncementBuilder.joinParts(parts))) }
+    }
+
+    private class Voices(val main: String, installed: Set<String>) {
+        val hasSwahili = SWAHILI in installed
+        val hasFrench = FRENCH in installed
+    }
+
+    private fun MutableList<SpeechSegment>.addNameWord(word: String, voices: Voices) {
+        when (originOf(word)) {
+            Origin.RWANDAN -> addKinyarwandaWord(word, voices)
+            Origin.FRENCH -> add(word, if (voices.main != FRENCH && voices.hasFrench) FRENCH else null)
+            Origin.OTHER -> add(word, null)
+        }
+    }
+
+    private fun MutableList<SpeechSegment>.addKinyarwandaWord(word: String, voices: Voices) {
+        when {
+            voices.main in NATIVE_BANTU_VOICES -> add(word, null)
+            voices.hasSwahili -> add(mapLetters(word, ::toSwahiliSpelling), SWAHILI)
+            voices.main == ENGLISH -> add(mapLetters(word, ::respellForEnglish), null)
+            else -> add(word, null)
+        }
+    }
+
+    /** Applies [transform] to the letters of [word], keeping punctuation such as a trailing comma. */
+    private fun mapLetters(word: String, transform: (String) -> String): String {
+        val match = Regex("^(\\W*)(.*?)(\\W*)$").find(word) ?: return word
+        val (lead, core, trail) = match.destructured
+        return if (core.isEmpty()) word else lead + transform(core) + trail
+    }
+
+    private fun MutableList<SpeechSegment>.add(part: String, language: String?) {
+        val text = part.trim()
+        if (text.isEmpty()) return
+        val last = lastOrNull()
+        if (last != null && last.languageTag == language) {
+            val joiner = if (text.startsWith(",")) "" else " "
+            this[lastIndex] = last.copy(text = last.text.trimEnd() + joiner + text)
+        } else {
+            this += SpeechSegment(text, language)
+        }
     }
 
     private fun stripAccents(value: String): String =
